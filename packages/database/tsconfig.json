@@ -1,11 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "rootDir": ".",
-    "noEmit": true,
+    "outDir": "dist",
+    "declaration": true,
+    "noEmit": false,
     "types": ["node"]
   },
-  "include": ["src/**/*", "prisma/**/*"]
+  "include": ["src/**/*", "prisma/themes.ts", "prisma/sample-content.ts"]
 }
