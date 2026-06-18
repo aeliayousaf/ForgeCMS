@@ -25,7 +25,13 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DATABASE_URL: ${DATABASE_URL:-mysql://forgecms:forge_password_change_me@mysql:3306/forgecms}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-forgecms}
+      MYSQL_USER: ${MYSQL_USER:-forgecms}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-forge_password_change_me}
+      # DATABASE_URL is built at container start from MYSQL_* (see docker/entrypoint-api.sh).
+      DATABASE_URL: ${DATABASE_URL:-}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change_me_access}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_me_refresh}
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-change_me_settings}

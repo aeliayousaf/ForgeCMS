@@ -45,9 +45,17 @@ export async function api<T = unknown>(
   }
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: { message?: string; errors?: Record<string, string[]> } | null = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // nginx/HTML error pages are not JSON
+    }
+  }
   if (!res.ok) {
-    throw new ApiError(res.status, data?.message ?? "Request failed", data?.errors);
+    const fallback = text && !data ? `Request failed (${res.status})` : "Request failed";
+    throw new ApiError(res.status, data?.message ?? fallback, data?.errors);
   }
   return data as T;
 }

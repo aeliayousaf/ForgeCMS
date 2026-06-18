@@ -38,9 +38,13 @@ export default function SetupWizard() {
     try {
       await api("/setup/test-db", { method: "POST", json: {} });
       setDbStatus("ok");
-    } catch {
+    } catch (err) {
       setDbStatus("fail");
-      setError("Could not connect to the database. Check your configuration and try again.");
+      const detail = err instanceof ApiError ? err.message : null;
+      setError(
+        detail ??
+          "Could not reach the API. On your server run: docker compose ps && docker compose logs api --tail 30",
+      );
     } finally {
       setBusy(false);
     }
