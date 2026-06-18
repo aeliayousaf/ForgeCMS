@@ -59,7 +59,7 @@ const containerSchema = z.object({
   align: z.enum(["stretch", "center", "flex-start", "flex-end"]).default("stretch"),
   justify: z.enum(["flex-start", "center", "flex-end", "space-between"]).default("flex-start"),
   direction: z.enum(["row", "column"]).default("row"),
-  wrap: z.boolean().default(true),
+  wrap: z.boolean().default(false),
 });
 type ContainerProps = z.infer<typeof containerSchema>;
 
@@ -74,7 +74,7 @@ export const containerBlock: BlockDefinition<ContainerProps> = {
     align: "stretch",
     justify: "flex-start",
     direction: "row",
-    wrap: true,
+    wrap: false,
   },
   editorFields: [
     { key: "gap", label: "Column gap", type: "text" },
@@ -198,7 +198,7 @@ export function createColumnLayout(count: 2 | 3 | 4, newId: () => string) {
       {
         id: newId(),
         type: "container" as const,
-        props: { gap: "1.5rem", align: "stretch", justify: "flex-start", direction: "row", wrap: true },
+        props: { gap: "1.5rem", align: "stretch", justify: "flex-start", direction: "row", wrap: false },
         children: widths.map((w) => ({
           id: newId(),
           type: "column" as const,

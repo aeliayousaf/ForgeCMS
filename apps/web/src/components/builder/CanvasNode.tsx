@@ -8,7 +8,7 @@ import { GripVertical, Trash2, Copy } from "lucide-react";
 import { BlockRenderer, getBlock } from "@forgecms/blocks";
 import type { BlockNode } from "@forgecms/shared";
 import { isLayoutType, resizeColumns } from "./tree";
-import { columnWidthPropKey, columnCssVarsFromProps, getColumnWidthPercent, type BuilderViewport } from "./viewport";
+import { columnWidthPropKey, getColumnWidthPercent, type BuilderViewport } from "./viewport";
 
 function ColumnResizeHandle({
   containerId,
@@ -60,7 +60,8 @@ function ColumnResizeHandle({
       role="separator"
       aria-orientation="vertical"
       onMouseDown={onMouseDown}
-      className="group/handle relative z-20 flex w-4 shrink-0 cursor-col-resize items-center justify-center"
+      className="group/handle absolute right-0 top-0 z-20 flex w-4 -translate-x-1/2 cursor-col-resize items-center justify-center"
+      style={{ bottom: 0 }}
     >
       <div className="h-12 w-1.5 rounded-full bg-indigo-400 opacity-40 transition group-hover/handle:opacity-100" />
     </div>
@@ -212,7 +213,7 @@ function SortableCanvasBlock({
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.35 : 1 }}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.35 : 1, width: node.type === "column" ? "100%" : undefined }}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
@@ -277,6 +278,24 @@ export function CanvasNode({
     const children = layoutNode.children ?? [];
 
     if (layoutNode.type === "section") {
+      const columns = children.filter((c) => c.type === "column");
+      const otherChildren = children.filter((c) => c.type !== "column");
+
+      const renderBlock = (child: BlockNode) => (
+        <div key={child.id}>
+          <CanvasNode
+            node={child}
+            selectedId={selectedId}
+            viewport={viewport}
+            onSelect={onSelect}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            setBlocks={setBlocks}
+          />
+          <InsertSlot beforeId={child.id} />
+        </div>
+      );
+
       return (
         <div
           style={{
@@ -289,20 +308,46 @@ export function CanvasNode({
           {children.length === 0 ? (
             <DropZone id={`drop-${layoutNode.id}`} parentId={layoutNode.id} label="Drop container here" />
           ) : (
-            children.map((child) => (
-              <div key={child.id}>
-                <CanvasNode
-                  node={child}
-                  selectedId={selectedId}
-                  viewport={viewport}
-                  onSelect={onSelect}
-                  onDelete={onDelete}
-                  onDuplicate={onDuplicate}
-                  setBlocks={setBlocks}
-                />
-                <InsertSlot beforeId={child.id} />
-              </div>
-            ))
+            <>
+              {columns.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    flexWrap: "nowrap",
+                    gap: "1.5rem",
+                    alignItems: "stretch",
+                    width: "100%",
+                  }}
+                >
+                  {columns.map((col) => {
+                    const w = getColumnWidthPercent(col.props, viewport);
+                    return (
+                      <div
+                        key={col.id}
+                        style={{
+                          position: "relative",
+                          flex: `1 1 ${w}%`,
+                          maxWidth: `${w}%`,
+                          minWidth: 0,
+                        }}
+                      >
+                        <CanvasNode
+                          node={col}
+                          selectedId={selectedId}
+                          viewport={viewport}
+                          onSelect={onSelect}
+                          onDelete={onDelete}
+                          onDuplicate={onDuplicate}
+                          setBlocks={setBlocks}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {otherChildren.map(renderBlock)}
+            </>
           )}
         </div>
       );
@@ -310,12 +355,14 @@ export function CanvasNode({
 
     if (layoutNode.type === "container") {
       const columns = children.filter((c) => c.type === "column");
+      const direction = ((props.direction as string) ?? "row") as CSSProperties["flexDirection"];
+      const rowColumns = direction === "row" && columns.length > 0;
       return (
         <div
           style={{
             display: "flex",
-            flexDirection: ((props.direction as string) ?? "row") as CSSProperties["flexDirection"],
-            flexWrap: props.wrap ? "wrap" : "nowrap",
+            flexDirection: direction,
+            flexWrap: rowColumns ? "nowrap" : props.wrap ? "wrap" : "nowrap",
             gap: (props.gap as string) ?? "0",
             alignItems: ((props.align as string) ?? "stretch") as CSSProperties["alignItems"],
             width: "100%",
@@ -332,9 +379,8 @@ export function CanvasNode({
                 <div
                   key={col.id}
                   style={{
-                    display: "flex",
-                    ...columnCssVarsFromProps(col.props),
-                    flex: `0 0 ${w}%`,
+                    position: "relative",
+                    flex: rowColumns ? `1 1 ${w}%` : `0 0 ${w}%`,
                     maxWidth: `${w}%`,
                     minWidth: 0,
                   }}
@@ -348,7 +394,7 @@ export function CanvasNode({
                     onDuplicate={onDuplicate}
                     setBlocks={setBlocks}
                   />
-                  {idx < columns.length - 1 && (
+                  {rowColumns && idx < columns.length - 1 && (
                     <ColumnResizeHandle
                       containerId={layoutNode.id}
                       leftId={col.id}
