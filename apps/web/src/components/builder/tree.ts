@@ -145,12 +145,137 @@ export function canAcceptChild(parentType: BlockType, childType: BlockType): boo
   return false;
 }
 
+export function getParentId(blocks: BlockNode[], id: string): string | null {
+  const found = findNode(blocks, id);
+  if (!found || found.path.length <= 1) return null;
+  return getNodeAtPath(blocks, found.path.slice(0, -1))?.id ?? null;
+}
+
+export function cloneBlockTree(node: BlockNode, newId: () => string): BlockNode {
+  return {
+    ...structuredClone(node),
+    id: newId(),
+    children: node.children?.map((c) => cloneBlockTree(c, newId)),
+  };
+}
+
+export function cloneBlockForest(nodes: BlockNode[], newId: () => string): BlockNode[] {
+  return nodes.map((n) => cloneBlockTree(n, newId));
+}
+
+function containsNode(node: BlockNode, targetId: string): boolean {
+  if (node.id === targetId) return true;
+  return node.children?.some((c) => containsNode(c, targetId)) ?? false;
+}
+
+/** Resolve drag-drop target into parent + insert index. */
+export function resolveDropTarget(
+  blocks: BlockNode[],
+  overId: string,
+  overData?: { parentId?: string | null; kind?: string; insertIndex?: number },
+): { parentId: string | null; index: number } | null {
+  if (overData?.kind === "dropzone") {
+    const parentId = overData.parentId ?? null;
+    if (parentId) {
+      const parent = findNode(blocks, parentId)?.node;
+      const len = parent?.children?.length ?? 0;
+      return { parentId, index: overData.insertIndex ?? len };
+    }
+    return { parentId: null, index: blocks.length };
+  }
+
+  if (overId.startsWith("drop-end-")) {
+    const parentId = overId.slice("drop-end-".length);
+    const parent = findNode(blocks, parentId)?.node;
+    return { parentId, index: parent?.children?.length ?? 0 };
+  }
+
+  if (overId.startsWith("drop-") && overId !== "drop-root") {
+    const parentId = overId.slice("drop-".length);
+    if (parentId.startsWith("end-")) {
+      const pid = parentId.slice("end-".length);
+      const parent = findNode(blocks, pid)?.node;
+      return { parentId: pid, index: parent?.children?.length ?? 0 };
+    }
+    const parent = findNode(blocks, parentId)?.node;
+    return { parentId, index: parent?.children?.length ?? 0 };
+  }
+
+  if (overId === "drop-root") {
+    return { parentId: null, index: blocks.length };
+  }
+
+  if (overId.startsWith("insert-before-")) {
+    const targetId = overId.slice("insert-before-".length);
+    const target = findNode(blocks, targetId);
+    if (!target) return null;
+    const parentId = getParentId(blocks, targetId);
+    const idx = target.path[target.path.length - 1];
+    return { parentId, index: idx };
+  }
+
+  if (overId.startsWith("insert-after-")) {
+    const targetId = overId.slice("insert-after-".length);
+    const target = findNode(blocks, targetId);
+    if (!target) return null;
+    const parentId = getParentId(blocks, targetId);
+    const idx = target.path[target.path.length - 1] + 1;
+    return { parentId, index: idx };
+  }
+
+  // Dropped on a node: insert before it (same parent)
+  const over = findNode(blocks, overId);
+  if (!over) return null;
+
+  if (over.node.type === "column" || over.node.type === "section" || over.node.type === "container") {
+    return { parentId: overId, index: over.node.children?.length ?? 0 };
+  }
+
+  const parentId = getParentId(blocks, overId);
+  const idx = over.path[over.path.length - 1];
+  return { parentId, index: idx };
+}
+
+export function applyDragMove(blocks: BlockNode[], activeId: string, overId: string, overData?: { parentId?: string | null; kind?: string; insertIndex?: number }): BlockNode[] {
+  const found = findNode(blocks, activeId);
+  if (!found) return blocks;
+
+  const target = resolveDropTarget(blocks, overId, overData);
+  if (!target) return blocks;
+
+  const node = found.node;
+  // Cannot move a node into its own descendant
+  if (target.parentId && containsNode(node, target.parentId)) return blocks;
+  const bareOver = overId.replace(/^insert-before-|^insert-after-|^drop-end-|^drop-/, "");
+  if (bareOver && bareOver !== activeId && containsNode(node, bareOver)) return blocks;
+
+  let next = removeNode(blocks, activeId);
+
+  // Adjust index if moving within same parent and removing shifted indices
+  let { parentId, index } = target;
+  const activeParentId = getParentId(blocks, activeId);
+  const activeIdx = found.path[found.path.length - 1];
+  if (activeParentId === parentId && activeIdx < index) {
+    index -= 1;
+  }
+
+  if (parentId) {
+    const parent = findNode(next, parentId)?.node;
+    if (parent && !canAcceptChild(parent.type, node.type)) return blocks;
+  } else if (isLayoutType(node.type) && node.type !== "section") {
+    // Widgets can go to root; nested layout types prefer parents
+  }
+
+  return insertNode(next, parentId, node, index);
+}
+
 export function resizeColumns(
   blocks: BlockNode[],
   containerId: string,
   leftColumnId: string,
   rightColumnId: string,
   deltaPercent: number,
+  widthKey: "widthPercent" | "widthPercentMd" | "widthPercentSm" = "widthPercent",
 ): BlockNode[] {
   return updateTree(blocks, containerId, (container) => {
     if (!container.children) return container;
@@ -159,13 +284,14 @@ export function resizeColumns(
     const right = children.find((c) => c.id === rightColumnId);
     if (!left || !right) return container;
 
-    const leftW = Number(left.props.widthPercent ?? 50);
-    const rightW = Number(right.props.widthPercent ?? 50);
+    const fallback = Number(left.props.widthPercent ?? 50);
+    const leftW = Number(left.props[widthKey] ?? fallback);
+    const rightW = Number(right.props[widthKey] ?? Number(right.props.widthPercent ?? 50));
     const nextLeft = Math.min(90, Math.max(10, leftW + deltaPercent));
     const nextRight = Math.min(90, Math.max(10, rightW - deltaPercent));
 
-    left.props = { ...left.props, widthPercent: nextLeft };
-    right.props = { ...right.props, widthPercent: nextRight };
+    left.props = { ...left.props, [widthKey]: nextLeft };
+    right.props = { ...right.props, [widthKey]: nextRight };
     return { ...container, children };
   });
 }

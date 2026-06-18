@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from "react";
 import type { BlockNode, PageDocument } from "@forgecms/shared";
 import { getBlock } from "./registry.js";
 import { resolveStyles } from "./styles.js";
+import "./fc-layout.css";
 
 function RenderNode({ node }: { node: BlockNode }): ReactNode {
   const def = getBlock(node.type);

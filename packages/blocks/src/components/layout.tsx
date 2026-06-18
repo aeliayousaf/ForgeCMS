@@ -131,11 +131,20 @@ export const containerBlock: BlockDefinition<ContainerProps> = {
 
 const columnSchema = z.object({
   widthPercent: z.number().min(5).max(100).default(50),
+  widthPercentMd: z.number().min(5).max(100).optional(),
+  widthPercentSm: z.number().min(5).max(100).optional(),
   minHeight: z.string().default("80px"),
   padding: z.string().default("0.5rem"),
   backgroundColor: z.string().default(""),
 });
 type ColumnProps = z.infer<typeof columnSchema>;
+
+function columnCssVars(props: ColumnProps): Record<string, string> {
+  const w = `${props.widthPercent}%`;
+  const md = `${props.widthPercentMd ?? props.widthPercent}%`;
+  const sm = `${props.widthPercentSm ?? props.widthPercentMd ?? props.widthPercent}%`;
+  return { "--fc-col-w": w, "--fc-col-w-md": md, "--fc-col-w-sm": sm };
+}
 
 export const columnBlock: BlockDefinition<ColumnProps> = {
   type: "column",
@@ -145,26 +154,28 @@ export const columnBlock: BlockDefinition<ColumnProps> = {
   schema: columnSchema,
   defaultProps: {
     widthPercent: 50,
+    widthPercentMd: undefined,
+    widthPercentSm: undefined,
     minHeight: "80px",
     padding: "0.5rem",
     backgroundColor: "",
   },
   editorFields: [
-    { key: "widthPercent", label: "Width (%)", type: "number" },
+    { key: "widthPercent", label: "Width desktop (%)", type: "number" },
+    { key: "widthPercentMd", label: "Width tablet (%)", type: "number" },
+    { key: "widthPercentSm", label: "Width mobile (%)", type: "number" },
     { key: "minHeight", label: "Min height", type: "text" },
     { key: "padding", label: "Padding", type: "text" },
     { key: "backgroundColor", label: "Background", type: "color" },
   ],
   component: ({ props, style, children }) => (
     <div
+      className="fc-column"
       style={{
-        flex: `0 0 ${props.widthPercent}%`,
-        maxWidth: `${props.widthPercent}%`,
-        minWidth: 0,
+        ...columnCssVars(props),
         minHeight: props.minHeight,
         padding: props.padding,
         backgroundColor: props.backgroundColor || undefined,
-        boxSizing: "border-box",
         ...style,
       }}
     >

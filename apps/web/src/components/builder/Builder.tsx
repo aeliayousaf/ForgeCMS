@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DndContext,
-  closestCenter,
+  DragOverlay,
   PointerSensor,
+  pointerWithin,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Save, LayoutTemplate, Columns2, Columns3 } from "lucide-react";
+import { Save, LayoutTemplate, Columns2, Columns3, Monitor, Tablet, Smartphone, Puzzle } from "lucide-react";
 import { getAllBlocks, getBlock, createColumnLayout } from "@forgecms/blocks";
-import type { BlockNode, BlockType, PageDocument } from "@forgecms/shared";
+import type { BlockNode, BlockType, PageDocument, ResponsiveStyles } from "@forgecms/shared";
 import { api } from "@/lib/api";
 import { PropsPanel } from "./PropsPanel";
 import { CanvasNode, RootDropZone, collectIds } from "./CanvasNode";
@@ -25,10 +27,19 @@ import {
   canAcceptChild,
   updateTree,
   isLayoutType,
+  applyDragMove,
+  cloneBlockForest,
 } from "./tree";
+import { VIEWPORT_WIDTHS, type BuilderViewport } from "./viewport";
 
 let counter = 0;
 const newId = () => `b-${Date.now().toString(36)}-${counter++}`;
+
+interface SavedComponent {
+  id: string;
+  name: string;
+  blocks: BlockNode[];
+}
 
 export function Builder({
   pageId,
@@ -43,6 +54,9 @@ export function Builder({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [meta, setMeta] = useState(initialMeta);
   const [status, setStatus] = useState<string>("");
+  const [viewport, setViewport] = useState<BuilderViewport>("desktop");
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [savedComponents, setSavedComponents] = useState<SavedComponent[]>([]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const selected = findNode(blocks, selectedId ?? "")?.node ?? null;
@@ -50,6 +64,33 @@ export function Builder({
 
   const layoutBlocks = getAllBlocks().filter((b) => isLayoutType(b.type));
   const contentBlocks = getAllBlocks().filter((b) => !isLayoutType(b.type));
+
+  useEffect(() => {
+    api<SavedComponent[]>("/components")
+      .then(setSavedComponents)
+      .catch(() => setSavedComponents([]));
+  }, []);
+
+  function insertNodes(nodes: BlockNode[]) {
+    const { parentId } = insertTarget;
+    setBlocks((b) => {
+      let next = b;
+      for (const node of nodes) {
+        if (parentId) {
+          const parent = findNode(next, parentId)?.node;
+          if (parent && !canAcceptChild(parent.type, node.type)) {
+            next = insertNode(next, null, node);
+          } else {
+            next = insertNode(next, parentId, node);
+          }
+        } else {
+          next = insertNode(next, null, node);
+        }
+      }
+      return next;
+    });
+    if (nodes[0]) setSelectedId(nodes[0].id);
+  }
 
   function addBlock(type: BlockType) {
     const def = getBlock(type);
@@ -59,21 +100,18 @@ export function Builder({
       id: newId(),
       type,
       props: structuredClone(def.defaultProps),
-      ...(type === "section" || type === "container" || type === "column" ? { children: [] } : {}),
+      ...(isLayoutType(type) ? { children: [] } : {}),
     };
+    insertNodes([node]);
+  }
 
-    const { parentId } = insertTarget;
-    if (parentId) {
-      const parent = findNode(blocks, parentId)?.node;
-      if (parent && !canAcceptChild(parent.type, type)) {
-        setBlocks((b) => insertNode(b, null, node));
-      } else {
-        setBlocks((b) => insertNode(b, parentId, node));
-      }
-    } else {
-      setBlocks((b) => insertNode(b, null, node));
-    }
-    setSelectedId(node.id);
+  function insertSavedComponent(comp: SavedComponent) {
+    const raw = Array.isArray(comp.blocks) ? comp.blocks : [];
+    if (raw.length === 0) return;
+    const cloned = cloneBlockForest(raw as BlockNode[], newId);
+    insertNodes(cloned);
+    setStatus(`Inserted "${comp.name}"`);
+    setTimeout(() => setStatus(""), 1500);
   }
 
   function addColumnPreset(count: 2 | 3) {
@@ -82,51 +120,29 @@ export function Builder({
     setSelectedId(layout.id);
   }
 
+  function onDragStart(e: DragStartEvent) {
+    setDraggingId(String(e.active.id));
+  }
+
   function onDragEnd(e: DragEndEvent) {
+    setDraggingId(null);
     const { active, over } = e;
     if (!over || active.id === over.id) return;
 
     const activeId = String(active.id);
     const overData = over.data.current as { parentId?: string | null; kind?: string } | undefined;
 
-    setBlocks((prev) => {
-      const found = findNode(prev, activeId);
-      if (!found) return prev;
-
-      let next = removeNode(prev, activeId);
-      const node = found.node;
-
-      if (overData?.kind === "dropzone") {
-        const parentId = overData.parentId ?? null;
-        if (parentId) {
-          const parent = findNode(next, parentId)?.node;
-          if (parent && !canAcceptChild(parent.type, node.type)) return prev;
-        }
-        return insertNode(next, parentId, node);
-      }
-
-      const overId = String(over.id);
-      const overFound = findNode(next, overId);
-      if (!overFound) return insertNode(next, null, node);
-
-      const parentPath = overFound.path.slice(0, -1);
-      const parentId =
-        parentPath.length > 0
-          ? (() => {
-              let list = next;
-              for (let i = 0; i < parentPath.length - 1; i++) list = list[parentPath[i]].children ?? [];
-              return list[parentPath[parentPath.length - 1]]?.id ?? null;
-            })()
-          : null;
-
-      const idx = overFound.path[overFound.path.length - 1];
-      return insertNode(next, parentId, node, idx);
-    });
+    setBlocks((prev) => applyDragMove(prev, activeId, String(over.id), overData));
   }
 
   function updateProps(props: Record<string, unknown>) {
     if (!selectedId) return;
     setBlocks((b) => updateTree(b, selectedId, (n) => ({ ...n, props })));
+  }
+
+  function updateStyles(styles: ResponsiveStyles | undefined) {
+    if (!selectedId) return;
+    setBlocks((b) => updateTree(b, selectedId, (n) => ({ ...n, styles })));
   }
 
   const document: PageDocument = { version: 1, blocks };
@@ -154,9 +170,13 @@ export function Builder({
     const name = prompt("Component name?");
     if (!name) return;
     await api("/components", { method: "POST", json: { name, blocks: [selected] } });
+    const list = await api<SavedComponent[]>("/components");
+    setSavedComponents(list);
     setStatus("Saved as component");
     setTimeout(() => setStatus(""), 1500);
   }
+
+  const draggingNode = draggingId ? findNode(blocks, draggingId)?.node : null;
 
   return (
     <div className="flex h-screen flex-col">
@@ -168,6 +188,25 @@ export function Builder({
             onChange={(e) => setMeta({ ...meta, title: e.target.value })}
           />
           <span className="text-xs text-slate-400">/{meta.slug}</span>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-slate-200 p-0.5">
+          {(
+            [
+              ["desktop", Monitor],
+              ["tablet", Tablet],
+              ["mobile", Smartphone],
+            ] as const
+          ).map(([vp, Icon]) => (
+            <button
+              key={vp}
+              type="button"
+              title={vp}
+              onClick={() => setViewport(vp)}
+              className={`rounded-md p-1.5 ${viewport === vp ? "bg-indigo-600 text-white" : "text-slate-500 hover:bg-slate-100"}`}
+            >
+              <Icon size={16} />
+            </button>
+          ))}
         </div>
         <div className="flex items-center gap-2">
           {status && <span className="text-xs text-slate-500">{status}</span>}
@@ -187,31 +226,38 @@ export function Builder({
         <div className="w-60 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
           <h3 className="mb-2 text-xs font-semibold uppercase text-slate-400">Layout presets</h3>
           <div className="mb-4 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => addColumnPreset(2)}
-              className="flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
-            >
+            <button type="button" onClick={() => addColumnPreset(2)} className="flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100">
               <Columns2 size={14} /> 2 Col
             </button>
-            <button
-              type="button"
-              onClick={() => addColumnPreset(3)}
-              className="flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
-            >
+            <button type="button" onClick={() => addColumnPreset(3)} className="flex items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-100">
               <Columns3 size={14} /> 3 Col
             </button>
           </div>
 
+          {savedComponents.length > 0 && (
+            <>
+              <h3 className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase text-slate-400">
+                <Puzzle size={12} /> Saved
+              </h3>
+              <div className="mb-4 space-y-1">
+                {savedComponents.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => insertSavedComponent(c)}
+                    className="w-full rounded-lg border border-slate-200 px-2 py-2 text-left text-xs hover:border-indigo-300 hover:bg-indigo-50"
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
           <h3 className="mb-2 text-xs font-semibold uppercase text-slate-400">Structure</h3>
           <div className="mb-4 grid grid-cols-2 gap-2">
             {layoutBlocks.map((def) => (
-              <button
-                key={def.type}
-                type="button"
-                onClick={() => addBlock(def.type)}
-                className="flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-2 text-xs hover:border-indigo-300 hover:bg-indigo-50"
-              >
+              <button key={def.type} type="button" onClick={() => addBlock(def.type)} className="flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-2 text-xs hover:border-indigo-300 hover:bg-indigo-50">
                 <LayoutTemplate size={12} />
                 {def.label}
               </button>
@@ -219,26 +265,22 @@ export function Builder({
           </div>
 
           <h3 className="mb-2 text-xs font-semibold uppercase text-slate-400">Widgets</h3>
-          <p className="mb-2 text-[10px] leading-snug text-slate-400">
-            Inserts into: {insertTarget.hint}. Select a column first to add widgets inside it.
-          </p>
+          <p className="mb-2 text-[10px] leading-snug text-slate-400">Inserts into: {insertTarget.hint}. Drag widgets between columns on the canvas.</p>
           <div className="grid grid-cols-2 gap-2">
             {contentBlocks.map((def) => (
-              <button
-                key={def.type}
-                type="button"
-                onClick={() => addBlock(def.type)}
-                className="rounded-lg border border-slate-200 px-2 py-2 text-xs hover:border-indigo-300 hover:bg-indigo-50"
-              >
+              <button key={def.type} type="button" onClick={() => addBlock(def.type)} className="rounded-lg border border-slate-200 px-2 py-2 text-xs hover:border-indigo-300 hover:bg-indigo-50">
                 {def.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-slate-200 p-6">
-          <div className="mx-auto min-h-[600px] max-w-6xl bg-white shadow-sm">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <div className="flex-1 overflow-y-auto bg-slate-300 p-6">
+          <div
+            className="mx-auto min-h-[600px] bg-white shadow-lg transition-all duration-300"
+            style={{ width: VIEWPORT_WIDTHS[viewport], maxWidth: "100%" }}
+          >
+            <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={onDragStart} onDragEnd={onDragEnd}>
               <SortableContext items={collectIds(blocks)} strategy={verticalListSortingStrategy}>
                 <RootDropZone empty={blocks.length === 0} />
                 {blocks.map((node) => (
@@ -246,6 +288,7 @@ export function Builder({
                     key={node.id}
                     node={node}
                     selectedId={selectedId}
+                    viewport={viewport}
                     onSelect={setSelectedId}
                     onDelete={(id) => {
                       setBlocks((b) => removeNode(b, id));
@@ -256,12 +299,19 @@ export function Builder({
                   />
                 ))}
               </SortableContext>
+              <DragOverlay>
+                {draggingNode ? (
+                  <div className="rounded-lg border-2 border-indigo-500 bg-white px-4 py-2 text-sm font-medium shadow-xl">
+                    {getBlock(draggingNode.type)?.label ?? draggingNode.type}
+                  </div>
+                ) : null}
+              </DragOverlay>
             </DndContext>
           </div>
         </div>
 
         <div className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white">
-          <PropsPanel block={selected} onChange={updateProps} />
+          <PropsPanel block={selected} viewport={viewport} onChange={updateProps} onStylesChange={updateStyles} />
           {selected && (
             <div className="border-t border-slate-100 p-4">
               <button type="button" onClick={saveAsComponent} className="w-full rounded-lg border border-slate-200 py-2 text-sm">

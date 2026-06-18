@@ -1,0 +1,21 @@
+/* Responsive column widths (Elementor-style breakpoints) */
+.fc-column {
+  flex: 0 0 var(--fc-col-w, 50%);
+  max-width: var(--fc-col-w, 50%);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .fc-column {
+    flex: 0 0 var(--fc-col-w-md, var(--fc-col-w, 50%));
+    max-width: var(--fc-col-w-md, var(--fc-col-w, 50%));
+  }
+}
+
+@media (max-width: 640px) {
+  .fc-column {
+    flex: 0 0 var(--fc-col-w-sm, var(--fc-col-w-md, var(--fc-col-w, 100%)));
+    max-width: var(--fc-col-w-sm, var(--fc-col-w-md, var(--fc-col-w, 100%)));
+  }
+}
