@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { emptyPageDocument, type PageDocument } from "@forgecms/shared";
 import { sanitizeDocument } from "../common/sanitize";
@@ -60,16 +60,28 @@ export class PagesService {
     await this.prisma.pageVersion.create({
       data: { pageId: id, version: nextVersion, document: clean as object, authorId },
     });
-    return this.prisma.page.update({
-      where: { id },
-      data: {
-        title: meta.title ?? page.title,
-        slug: meta.slug ?? page.slug,
-        seoTitle: meta.seoTitle ?? page.seoTitle,
-        seoDescription: meta.seoDescription ?? page.seoDescription,
-        ogImage: meta.ogImage ?? page.ogImage,
-      },
-    });
+    try {
+      return await this.prisma.page.update({
+        where: { id },
+        data: {
+          title: meta.title ?? page.title,
+          slug: meta.slug ?? page.slug,
+          seoTitle: meta.seoTitle ?? page.seoTitle,
+          seoDescription: meta.seoDescription ?? page.seoDescription,
+          ogImage: meta.ogImage ?? page.ogImage,
+        },
+      });
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as { code: string }).code === "P2002"
+      ) {
+        throw new BadRequestException("That URL slug is already used by another page");
+      }
+      throw err;
+    }
   }
 
   async publish(id: string) {

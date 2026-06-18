@@ -17,7 +17,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Save, LayoutTemplate, Columns2, Columns3, Monitor, Tablet, Smartphone, Puzzle } from "lucide-react";
 import { getAllBlocks, getBlock, createColumnLayout } from "@forgecms/blocks";
 import type { BlockNode, BlockType, PageDocument, ResponsiveStyles } from "@forgecms/shared";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { PropsPanel } from "./PropsPanel";
 import { PaletteDraggable, paletteWidgetId, parsePaletteId } from "./PaletteDraggable";
 import { CanvasNode, RootDropZone, collectSortableIds } from "./CanvasNode";
@@ -64,6 +64,8 @@ export function Builder({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [meta, setMeta] = useState(initialMeta);
   const [status, setStatus] = useState<string>("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [viewport, setViewport] = useState<BuilderViewport>("desktop");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragLabel, setDragLabel] = useState<string>("");
@@ -224,22 +226,53 @@ export function Builder({
 
   const document: PageDocument = { version: 1, blocks };
 
-  async function save() {
-    setStatus("Saving...");
+  async function persistPage() {
     await api(`/pages/${pageId}`, {
       method: "PUT",
       json: { document, title: meta.title, slug: meta.slug },
     });
-    setStatus("Saved");
-    setTimeout(() => setStatus(""), 1500);
+  }
+
+  async function save() {
+    setSaving(true);
+    setSaveError(null);
+    setStatus("Saving...");
+    try {
+      await persistPage();
+      setStatus("Saved");
+      setTimeout(() => setStatus(""), 1500);
+    } catch (err) {
+      setStatus("");
+      let msg = err instanceof ApiError ? err.message : "Save failed — check your connection";
+      if (err instanceof ApiError && err.errors) {
+        const detail = Object.entries(err.errors)
+          .flatMap(([k, v]) => (v ?? []).map((e) => `${k}: ${e}`))
+          .join("; ");
+        if (detail) msg = `${msg} (${detail})`;
+      }
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function publish() {
-    await save();
-    await api(`/pages/${pageId}/publish`, { method: "POST", json: {} });
-    setStatus("Published");
-    setMeta((m) => ({ ...m, status: "published" }));
-    setTimeout(() => setStatus(""), 1500);
+    setSaving(true);
+    setSaveError(null);
+    setStatus("Saving...");
+    try {
+      await persistPage();
+      await api(`/pages/${pageId}/publish`, { method: "POST", json: {} });
+      setStatus("Published");
+      setMeta((m) => ({ ...m, status: "published" }));
+      setTimeout(() => setStatus(""), 1500);
+    } catch (err) {
+      setStatus("");
+      const msg = err instanceof ApiError ? err.message : "Publish failed";
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function saveAsComponent() {
@@ -287,18 +320,30 @@ export function Builder({
           ))}
         </div>
         <div className="flex items-center gap-2">
-          {status && <span className="text-xs text-slate-500">{status}</span>}
+          {saveError && (
+            <span className="max-w-xs truncate text-xs text-red-600" title={saveError}>
+              {saveError}
+            </span>
+          )}
+          {status && !saveError && <span className="text-xs text-slate-500">{status}</span>}
           <a href={`/${meta.slug}`} target="_blank" rel="noopener noreferrer" className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
             Preview
           </a>
-          <button type="button" onClick={save} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm">
+          <button type="button" onClick={save} disabled={saving} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-50">
             <Save size={14} /> Save draft
           </button>
-          <button type="button" onClick={publish} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white">
+          <button type="button" onClick={publish} disabled={saving} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">
             Publish
           </button>
         </div>
       </div>
+
+      {saveError && (
+        <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {saveError}
+          {saveError.includes("CSRF") && " Log out and log back in if this persists."}
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         <div className="w-60 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3">

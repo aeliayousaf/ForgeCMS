@@ -18,34 +18,21 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T = unknown>(
-  path: string,
-  options: RequestInit & { json?: unknown } = {},
-): Promise<T> {
-  const { json, headers, ...rest } = options;
-  const csrf = getCookie("fc_csrf");
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...rest,
-    credentials: "include",
-    headers: {
-      ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...(csrf ? { "x-csrf-token": csrf } : {}),
-      ...headers,
-    },
-    body: json !== undefined ? JSON.stringify(json) : rest.body,
-  });
+function requestTimeout(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), ms);
+  return ctrl.signal;
+}
 
-  if (res.status === 401 && typeof window !== "undefined") {
-    // Try a transparent refresh once.
-    const refreshed = await fetch(`${API_BASE}/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-    });
-    if (refreshed.ok) return api<T>(path, options);
-  }
-
-  const text = await res.text();
-  let data: { message?: string; errors?: Record<string, string[]> } | null = null;
+function parseApiErrorBody(
+  status: number,
+  text: string,
+): { message: string; errors?: Record<string, string[]> } {
+  let data: {
+    message?: string | string[] | { message?: string; errors?: Record<string, string[]> };
+    errors?: Record<string, string[]>;
+  } | null = null;
   if (text) {
     try {
       data = JSON.parse(text);
@@ -53,9 +40,72 @@ export async function api<T = unknown>(
       // nginx/HTML error pages are not JSON
     }
   }
-  if (!res.ok) {
-    const fallback = text && !data ? `Request failed (${res.status})` : "Request failed";
-    throw new ApiError(res.status, data?.message ?? fallback, data?.errors);
+
+  const nested =
+    data?.message && typeof data.message === "object" && !Array.isArray(data.message)
+      ? data.message
+      : null;
+  const errors = nested?.errors ?? data?.errors;
+  const raw = nested?.message ?? data?.message;
+
+  const message =
+    typeof raw === "string"
+      ? raw
+      : Array.isArray(raw)
+        ? raw.join(", ")
+        : status === 403
+          ? "Session expired or invalid CSRF token — refresh the page and try again"
+          : text && !data
+            ? `Request failed (${status})`
+            : "Request failed";
+
+  return { message, errors };
+}
+
+export async function api<T = unknown>(
+  path: string,
+  options: RequestInit & { json?: unknown; _retried?: boolean } = {},
+): Promise<T> {
+  const { json, headers, _retried, ...rest } = options;
+  const csrf = getCookie("fc_csrf");
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...rest,
+      credentials: "include",
+      signal: rest.signal ?? requestTimeout(60_000),
+      headers: {
+        ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(csrf ? { "x-csrf-token": csrf } : {}),
+        ...headers,
+      },
+      body: json !== undefined ? JSON.stringify(json) : rest.body,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new ApiError(0, "Request timed out — check that the API is running");
+    }
+    throw new ApiError(0, "Network error — could not reach the server");
   }
-  return data as T;
+
+  if (res.status === 401 && !_retried && typeof window !== "undefined") {
+    const refreshed = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      signal: requestTimeout(15_000),
+    });
+    if (refreshed.ok) return api<T>(path, { ...options, _retried: true });
+  }
+
+  const text = await res.text();
+  if (!res.ok) {
+    const { message, errors } = parseApiErrorBody(res.status, text);
+    throw new ApiError(res.status, message, errors);
+  }
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
 }
