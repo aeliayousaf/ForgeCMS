@@ -1,0 +1,133 @@
+"use client";
+
+import { getBlock, type EditorField } from "@forgecms/blocks";
+import type { BlockNode } from "@forgecms/shared";
+
+function FieldInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: EditorField;
+  value: unknown;
+  onChange: (v: unknown) => void;
+}) {
+  if (field.type === "textarea" || field.type === "richtext") {
+    return (
+      <textarea
+        className="fc-input"
+        rows={field.type === "richtext" ? 6 : 3}
+        value={String(value ?? "")}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={field.placeholder}
+      />
+    );
+  }
+  if (field.type === "select") {
+    return (
+      <select className="fc-input" value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+        {field.options?.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  if (field.type === "boolean") {
+    return (
+      <input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} />
+    );
+  }
+  if (field.type === "number") {
+    return (
+      <input
+        className="fc-input"
+        type="number"
+        value={Number(value ?? 0)}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+    );
+  }
+  if (field.type === "list") {
+    const items = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
+    return (
+      <div className="space-y-3">
+        {items.map((item, idx) => (
+          <div key={idx} className="rounded-lg border border-slate-200 p-3">
+            <div className="mb-2 flex justify-between text-xs text-slate-400">
+              <span>Item {idx + 1}</span>
+              <button
+                className="text-red-500"
+                onClick={() => onChange(items.filter((_, i) => i !== idx))}
+              >
+                Remove
+              </button>
+            </div>
+            {field.itemFields?.map((sub) => (
+              <label key={sub.key} className="mb-2 block">
+                <span className="mb-1 block text-xs font-medium text-slate-500">{sub.label}</span>
+                <FieldInput
+                  field={sub}
+                  value={item[sub.key]}
+                  onChange={(v) =>
+                    onChange(items.map((it, i) => (i === idx ? { ...it, [sub.key]: v } : it)))
+                  }
+                />
+              </label>
+            ))}
+          </div>
+        ))}
+        <button
+          className="w-full rounded-lg border border-dashed border-slate-300 py-2 text-sm text-slate-500"
+          onClick={() => {
+            const blank: Record<string, unknown> = {};
+            field.itemFields?.forEach((f) => (blank[f.key] = f.type === "number" ? 0 : ""));
+            onChange([...items, blank]);
+          }}
+        >
+          + Add item
+        </button>
+      </div>
+    );
+  }
+  // text, color, image
+  return (
+    <input
+      className="fc-input"
+      value={String(value ?? "")}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={field.placeholder ?? (field.type === "image" ? "Image URL" : "")}
+    />
+  );
+}
+
+export function PropsPanel({
+  block,
+  onChange,
+}: {
+  block: BlockNode | null;
+  onChange: (props: Record<string, unknown>) => void;
+}) {
+  if (!block) {
+    return <p className="p-4 text-sm text-slate-400">Select a block to edit its content.</p>;
+  }
+  const def = getBlock(block.type);
+  if (!def) return <p className="p-4 text-sm text-slate-400">Unknown block.</p>;
+
+  return (
+    <div className="space-y-4 p-4">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{def.label}</h3>
+      {def.editorFields.map((field) => (
+        <label key={field.key} className="block">
+          <span className="mb-1 block text-xs font-medium text-slate-500">{field.label}</span>
+          <FieldInput
+            field={field}
+            value={block.props[field.key]}
+            onChange={(v) => onChange({ ...block.props, [field.key]: v })}
+          />
+        </label>
+      ))}
+    </div>
+  );
+}

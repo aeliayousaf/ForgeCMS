@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --radius: 0.5rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body, ui-sans-serif, system-ui, sans-serif);
+}
+
+/* Shared button + input styles used by rendered blocks (public site). */
+.fc-btn {
+  display: inline-block;
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius, 0.5rem);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: opacity 0.15s ease;
+}
+.fc-btn:hover {
+  opacity: 0.9;
+}
+.fc-btn-primary {
+  background: var(--color-primary, #4f46e5);
+  color: #fff;
+}
+.fc-btn-outline {
+  background: transparent;
+  border-color: var(--color-primary, #4f46e5);
+  color: var(--color-primary, #4f46e5);
+}
+.fc-btn-ghost {
+  background: transparent;
+  color: var(--color-text, #111);
+}
+.fc-input {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius, 0.5rem);
+  font: inherit;
+  background: #fff;
+  color: #111;
+}
+.fc-prose h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+}
+.fc-prose p {
+  margin: 0.75rem 0;
+  line-height: 1.7;
+}
+.fc-prose ul {
+  padding-left: 1.25rem;
+  list-style: disc;
+}

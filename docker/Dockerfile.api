@@ -1,0 +1,27 @@
+# ---- Build stage ----
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+
+COPY pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
+COPY packages ./packages
+COPY apps/api ./apps/api
+
+RUN pnpm install --no-frozen-lockfile
+RUN pnpm --filter @forgecms/database generate
+RUN pnpm --filter @forgecms/api build
+
+# ---- Runtime stage ----
+FROM node:22-bookworm-slim
+WORKDIR /app
+# mysql-client + tar are required for the backup/restore feature.
+RUN apt-get update && apt-get install -y openssl ca-certificates default-mysql-client tar gzip \
+    && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
+
+COPY --from=build /app /app
+
+EXPOSE 4000
+# On boot: sync schema to the database, then start the API.
+CMD ["sh", "-c", "pnpm --filter @forgecms/database run db:push --skip-generate && node apps/api/dist/main.js"]
