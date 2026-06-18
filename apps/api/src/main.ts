@@ -1,6 +1,5 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { AppModule } from "./app.module";
@@ -13,7 +12,6 @@ async function bootstrap() {
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   // Same-origin behind nginx in production; allow web origin in dev.
   app.enableCors({
