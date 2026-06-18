@@ -209,6 +209,12 @@ export function resolveDropTarget(
     const targetId = overId.slice("insert-before-".length);
     const target = findNode(blocks, targetId);
     if (!target) return null;
+
+    // Dropping before a layout node = insert at the start of its children
+    if (isLayoutType(target.node.type)) {
+      return { parentId: targetId, index: 0 };
+    }
+
     const parentId = getParentId(blocks, targetId);
     const idx = target.path[target.path.length - 1];
     return { parentId, index: idx };
@@ -262,8 +268,6 @@ export function applyDragMove(blocks: BlockNode[], activeId: string, overId: str
   if (parentId) {
     const parent = findNode(next, parentId)?.node;
     if (parent && !canAcceptChild(parent.type, node.type)) return blocks;
-  } else if (isLayoutType(node.type) && node.type !== "section") {
-    // Widgets can go to root; nested layout types prefer parents
   }
 
   return insertNode(next, parentId, node, index);

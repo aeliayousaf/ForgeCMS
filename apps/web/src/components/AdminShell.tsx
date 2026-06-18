@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   LayoutDashboard,
   FileText,
@@ -17,8 +18,12 @@ import {
   DatabaseBackup,
   LogOut,
   ExternalLink,
+  PanelLeft,
+  ArrowLeft,
 } from "lucide-react";
 import { api } from "@/lib/api";
+
+const PAGE_EDITOR = /^\/admin\/pages\/[^/]+\/edit\/?$/;
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -38,6 +43,9 @@ const NAV = [
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const isPageEditor = PAGE_EDITOR.test(pathname);
+  const [menuExpanded, setMenuExpanded] = useState(false);
+  const sidebarCollapsed = isPageEditor && !menuExpanded;
 
   async function logout() {
     await api("/auth/logout", { method: "POST", json: {} }).catch(() => {});
@@ -46,46 +54,103 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
-      <aside className="w-64 shrink-0 border-r border-slate-200 bg-white flex flex-col">
-        <div className="px-5 py-5 text-lg font-extrabold tracking-tight">ForgeCMS</div>
-        <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
+    <div
+      className={`flex bg-slate-50 text-slate-900 ${isPageEditor ? "h-screen overflow-hidden" : "min-h-screen"}`}
+    >
+      <aside
+        className={`relative flex shrink-0 flex-col border-r border-slate-200 bg-white transition-[width] duration-200 ${
+          sidebarCollapsed ? "w-14" : "w-64"
+        }`}
+      >
+        <div
+          className={`flex items-center border-b border-slate-100 ${
+            sidebarCollapsed ? "justify-center px-2 py-3" : "justify-between px-4 py-4"
+          }`}
+        >
+          {sidebarCollapsed ? (
+            <button
+              type="button"
+              onClick={() => setMenuExpanded(true)}
+              className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+              title="Expand menu"
+            >
+              <PanelLeft size={18} />
+            </button>
+          ) : (
+            <>
+              <span className="text-lg font-extrabold tracking-tight">ForgeCMS</span>
+              {isPageEditor && (
+                <button
+                  type="button"
+                  onClick={() => setMenuExpanded(false)}
+                  className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100"
+                  title="Collapse menu"
+                >
+                  <PanelLeft size={18} className="rotate-180" />
+                </button>
+              )}
+            </>
+          )}
+        </div>
+
+        {isPageEditor && (
+          <Link
+            href="/admin/pages"
+            className={`mx-2 mt-2 flex items-center gap-2 rounded-lg text-slate-600 hover:bg-slate-100 ${
+              sidebarCollapsed ? "justify-center p-2" : "px-3 py-2 text-sm font-medium"
+            }`}
+            title="Back to pages"
+          >
+            <ArrowLeft size={18} />
+            {!sidebarCollapsed && "Back to pages"}
+          </Link>
+        )}
+
+        <nav className={`flex-1 space-y-0.5 overflow-y-auto ${sidebarCollapsed ? "px-1 py-2" : "px-2 py-2"}`}>
           {NAV.map(({ href, label, icon: Icon }) => {
             const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  active ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100"
-                }`}
+                title={sidebarCollapsed ? label : undefined}
+                className={`flex items-center rounded-lg text-sm font-medium transition ${
+                  sidebarCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2"
+                } ${active ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 <Icon size={18} />
-                {label}
+                {!sidebarCollapsed && label}
               </Link>
             );
           })}
         </nav>
         <button
+          type="button"
           onClick={logout}
-          className="m-3 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          title={sidebarCollapsed ? "Sign out" : undefined}
+          className={`m-2 flex items-center rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 ${
+            sidebarCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2"
+          }`}
         >
-          <LogOut size={18} /> Sign out
+          <LogOut size={18} />
+          {!sidebarCollapsed && "Sign out"}
         </button>
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-end border-b border-slate-200 bg-white px-8 py-3">
-          <a
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
-          >
-            <ExternalLink size={16} />
-            Preview site
-          </a>
-        </header>
-        <main className="flex-1 overflow-x-hidden">{children}</main>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {!isPageEditor && (
+          <header className="flex items-center justify-end border-b border-slate-200 bg-white px-8 py-3">
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+            >
+              <ExternalLink size={16} />
+              Preview site
+            </a>
+          </header>
+        )}
+        <main className={`flex-1 ${isPageEditor ? "min-h-0 overflow-hidden" : "overflow-x-hidden"}`}>{children}</main>
       </div>
     </div>
   );
