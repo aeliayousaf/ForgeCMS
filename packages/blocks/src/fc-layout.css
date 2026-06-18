@@ -1,3 +1,39 @@
+/* Background image layers (section / container / column) */
+.fc-bg-layer {
+  position: relative;
+  isolation: isolate;
+}
+
+.fc-bg-layer__image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.fc-bg-layer__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.fc-bg-layer__content {
+  position: relative;
+  z-index: 2;
+}
+
+.fc-bg-layer--parallax .fc-bg-layer__image {
+  background-attachment: fixed;
+}
+
+@media (max-width: 768px) {
+  .fc-bg-layer--parallax .fc-bg-layer__image {
+    background-attachment: scroll;
+  }
+}
+
 /* Responsive column widths (Elementor-style breakpoints) */
 .fc-column {
   flex: 0 0 var(--fc-col-w, 50%);

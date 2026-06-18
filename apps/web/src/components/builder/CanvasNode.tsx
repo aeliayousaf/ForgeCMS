@@ -1,29 +1,35 @@
 "use client";
 
-import { useCallback, useRef, type CSSProperties } from "react";
+import { useCallback, useRef, useState, type CSSProperties } from "react";
 import { useDndContext, useDroppable } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2, Copy } from "lucide-react";
-import { BlockRenderer, getBlock } from "@forgecms/blocks";
+import { BlockRenderer, getBlock, LayoutBackground } from "@forgecms/blocks";
 import type { BlockNode } from "@forgecms/shared";
 import { isLayoutType, resizeColumns } from "./tree";
 import { columnWidthPropKey, getColumnWidthPercent, type BuilderViewport } from "./viewport";
+import { percentToFractionLabel } from "./column-layout";
 
 function ColumnResizeHandle({
   containerId,
   leftId,
   rightId,
+  leftPercent,
+  rightPercent,
   viewport,
   onResize,
 }: {
   containerId: string;
   leftId: string;
   rightId: string;
+  leftPercent: number;
+  rightPercent: number;
   viewport: BuilderViewport;
   onResize: (updater: (prev: BlockNode[]) => BlockNode[]) => void;
 }) {
   const dragging = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
   const startX = useRef(0);
   const widthKey = columnWidthPropKey(viewport);
 
@@ -32,6 +38,7 @@ function ColumnResizeHandle({
       e.stopPropagation();
       e.preventDefault();
       dragging.current = true;
+      setIsDragging(true);
       startX.current = e.clientX;
 
       const onMove = (ev: MouseEvent) => {
@@ -45,6 +52,7 @@ function ColumnResizeHandle({
 
       const onUp = () => {
         dragging.current = false;
+        setIsDragging(false);
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
       };
@@ -59,10 +67,17 @@ function ColumnResizeHandle({
     <div
       role="separator"
       aria-orientation="vertical"
+      aria-valuenow={leftPercent}
+      aria-valuetext={`${percentToFractionLabel(leftPercent)} and ${percentToFractionLabel(rightPercent)}`}
       onMouseDown={onMouseDown}
       className="group/handle absolute right-0 top-0 z-20 flex w-4 -translate-x-1/2 cursor-col-resize items-center justify-center"
       style={{ bottom: 0 }}
     >
+      {isDragging && (
+        <div className="pointer-events-none absolute -top-9 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-medium text-white shadow-lg">
+          {percentToFractionLabel(leftPercent)} ({leftPercent}%) · {percentToFractionLabel(rightPercent)} ({rightPercent}%)
+        </div>
+      )}
       <div className="h-12 w-1.5 rounded-full bg-indigo-400 opacity-40 transition group-hover/handle:opacity-100" />
     </div>
   );
@@ -149,9 +164,10 @@ function ColumnCanvas({
   });
 
   return (
-    <div
-      ref={setNodeRef}
-      style={{
+    <LayoutBackground
+      props={props}
+      className="h-full w-full"
+      contentStyle={{
         width: "100%",
         minHeight: (props.minHeight as string) ?? "80px",
         padding: (props.padding as string) ?? "0.5rem",
@@ -160,6 +176,7 @@ function ColumnCanvas({
         boxSizing: "border-box",
       }}
     >
+      <div ref={setNodeRef} className="h-full w-full">
       {children.length === 0 ? (
         <p className={`flex min-h-[80px] items-center justify-center text-center text-sm ${isOver ? "text-indigo-600 font-medium" : "text-slate-400"}`}>
           Drop widgets here
@@ -184,7 +201,8 @@ function ColumnCanvas({
           <DropZone id={`drop-end-${layoutNode.id}`} parentId={layoutNode.id} compact label="Drop here" />
         </>
       )}
-    </div>
+      </div>
+    </LayoutBackground>
   );
 }
 
@@ -297,8 +315,10 @@ export function CanvasNode({
       );
 
       return (
-        <div
-          style={{
+        <LayoutBackground
+          props={props}
+          style={{ width: "100%", minHeight: "60px" }}
+          contentStyle={{
             padding: `${props.paddingY ?? "2rem"} ${props.paddingX ?? "1rem"}`,
             backgroundColor: (props.backgroundColor as string) || "#f8fafc",
             minHeight: "60px",
@@ -349,7 +369,7 @@ export function CanvasNode({
               {otherChildren.map(renderBlock)}
             </>
           )}
-        </div>
+        </LayoutBackground>
       );
     }
 
@@ -358,8 +378,10 @@ export function CanvasNode({
       const direction = ((props.direction as string) ?? "row") as CSSProperties["flexDirection"];
       const rowColumns = direction === "row" && columns.length > 0;
       return (
-        <div
-          style={{
+        <LayoutBackground
+          props={props}
+          style={{ width: "100%", minHeight: "80px" }}
+          contentStyle={{
             display: "flex",
             flexDirection: direction,
             flexWrap: rowColumns ? "nowrap" : props.wrap ? "wrap" : "nowrap",
@@ -375,6 +397,8 @@ export function CanvasNode({
           ) : (
             columns.map((col, idx) => {
               const w = getColumnWidthPercent(col.props, viewport);
+              const nextCol = columns[idx + 1];
+              const nextW = nextCol ? getColumnWidthPercent(nextCol.props, viewport) : 0;
               return (
                 <div
                   key={col.id}
@@ -394,11 +418,13 @@ export function CanvasNode({
                     onDuplicate={onDuplicate}
                     setBlocks={setBlocks}
                   />
-                  {rowColumns && idx < columns.length - 1 && (
+                  {rowColumns && idx < columns.length - 1 && nextCol && (
                     <ColumnResizeHandle
                       containerId={layoutNode.id}
                       leftId={col.id}
-                      rightId={columns[idx + 1].id}
+                      rightId={nextCol.id}
+                      leftPercent={w}
+                      rightPercent={nextW}
                       viewport={viewport}
                       onResize={(updater) => setBlocks(updater)}
                     />
@@ -407,7 +433,7 @@ export function CanvasNode({
               );
             })
           )}
-        </div>
+        </LayoutBackground>
       );
     }
 

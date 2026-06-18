@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { getBlock, type EditorField } from "@forgecms/blocks";
 import type { BlockNode, ResponsiveStyles } from "@forgecms/shared";
-import { StylePanel, ColumnWidthPanel } from "./StylePanel";
+import { StylePanel, ColumnWidthPanel, ColumnLayoutPanel } from "./StylePanel";
+import { BackgroundImagePanel, isLayoutBackgroundBlock } from "./BackgroundImagePanel";
 import type { BuilderViewport } from "./viewport";
+import { findNode, getParentId } from "./tree";
 
 function FieldInput({
   field,
@@ -100,16 +102,32 @@ function FieldInput({
 
 export function PropsPanel({
   block,
+  blocks,
   viewport,
   onChange,
   onStylesChange,
+  onApplyContainerLayout,
 }: {
   block: BlockNode | null;
+  blocks: BlockNode[];
   viewport: BuilderViewport;
   onChange: (props: Record<string, unknown>) => void;
   onStylesChange: (styles: ResponsiveStyles | undefined) => void;
+  onApplyContainerLayout: (containerId: string, percents: number[]) => void;
 }) {
   const [tab, setTab] = useState<"content" | "style">("content");
+
+  const containerContext = useMemo(() => {
+    if (!block) return null;
+    if (block.type === "container") return block;
+    if (block.type === "column") {
+      const parentId = getParentId(blocks, block.id);
+      if (!parentId) return null;
+      const parent = findNode(blocks, parentId)?.node;
+      return parent?.type === "container" ? parent : null;
+    }
+    return null;
+  }, [block, blocks]);
 
   if (!block) {
     return <p className="p-4 text-sm text-slate-400">Select a block to edit its content.</p>;
@@ -153,6 +171,16 @@ export function PropsPanel({
       {tab === "style" && (
         <>
           <StylePanel block={block} onChange={onStylesChange} />
+          {isLayoutBackgroundBlock(block.type) && (
+            <BackgroundImagePanel block={block} onChange={onChange} />
+          )}
+          {containerContext && (
+            <ColumnLayoutPanel
+              container={containerContext}
+              viewport={viewport}
+              onApplyLayout={(percents) => onApplyContainerLayout(containerContext.id, percents)}
+            />
+          )}
           {block.type === "column" && (
             <ColumnWidthPanel block={block} viewport={viewport} onChange={onChange} />
           )}

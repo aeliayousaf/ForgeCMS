@@ -33,8 +33,11 @@ import {
   applyDragMove,
   cloneBlockForest,
   resolveDropTarget,
+  applyContainerColumnWidths,
 } from "./tree";
+import { columnWidthPropKey } from "./viewport";
 import { VIEWPORT_WIDTHS, type BuilderViewport } from "./viewport";
+import "@forgecms/blocks/fc-layout.css";
 
 let counter = 0;
 const newId = () => `b-${Date.now().toString(36)}-${counter++}`;
@@ -222,6 +225,11 @@ export function Builder({
   function updateStyles(styles: ResponsiveStyles | undefined) {
     if (!selectedId) return;
     setBlocks((b) => updateTree(b, selectedId, (n) => ({ ...n, styles })));
+  }
+
+  function applyContainerLayout(containerId: string, percents: number[]) {
+    const widthKey = columnWidthPropKey(viewport);
+    setBlocks((b) => applyContainerColumnWidths(b, containerId, percents, widthKey));
   }
 
   const document: PageDocument = { version: 1, blocks };
@@ -431,7 +439,14 @@ export function Builder({
         </div>
 
         <div className="w-80 shrink-0 overflow-y-auto border-l border-slate-200 bg-white">
-          <PropsPanel block={selected} viewport={viewport} onChange={updateProps} onStylesChange={updateStyles} />
+          <PropsPanel
+            block={selected}
+            blocks={blocks}
+            viewport={viewport}
+            onChange={updateProps}
+            onStylesChange={updateStyles}
+            onApplyContainerLayout={applyContainerLayout}
+          />
           {selected && (
             <div className="border-t border-slate-100 p-4">
               <button type="button" onClick={saveAsComponent} className="w-full rounded-lg border border-slate-200 py-2 text-sm">

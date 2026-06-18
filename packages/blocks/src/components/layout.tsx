@@ -1,13 +1,17 @@
 import { z } from "zod";
 import type { BlockDefinition } from "../types.js";
+import { layoutBackgroundDefaults, layoutBackgroundSchema } from "../background.js";
+import { LayoutBackground } from "../layout-background.js";
 
-const sectionSchema = z.object({
-  fullWidth: z.boolean().default(true),
-  maxWidth: z.string().default("1200px"),
-  paddingY: z.string().default("3rem"),
-  paddingX: z.string().default("1.5rem"),
-  backgroundColor: z.string().default(""),
-});
+const sectionSchema = z
+  .object({
+    fullWidth: z.boolean().default(true),
+    maxWidth: z.string().default("1200px"),
+    paddingY: z.string().default("3rem"),
+    paddingX: z.string().default("1.5rem"),
+    backgroundColor: z.string().default(""),
+  })
+  .merge(layoutBackgroundSchema);
 type SectionProps = z.infer<typeof sectionSchema>;
 
 export const sectionBlock: BlockDefinition<SectionProps> = {
@@ -22,6 +26,7 @@ export const sectionBlock: BlockDefinition<SectionProps> = {
     paddingY: "3rem",
     paddingX: "1.5rem",
     backgroundColor: "",
+    ...layoutBackgroundDefaults,
   },
   editorFields: [
     { key: "fullWidth", label: "Full width content", type: "boolean" },
@@ -37,30 +42,33 @@ export const sectionBlock: BlockDefinition<SectionProps> = {
       </div>
     );
     return (
-      <section
-        style={{
-          width: "100%",
-          paddingTop: props.paddingY,
-          paddingBottom: props.paddingY,
-          paddingLeft: props.paddingX,
-          paddingRight: props.paddingX,
-          backgroundColor: props.backgroundColor || undefined,
-          ...style,
-        }}
-      >
-        {props.fullWidth ? children : inner}
-      </section>
+      <LayoutBackground props={props} style={{ width: "100%", ...(style as object) }}>
+        <section
+          style={{
+            width: "100%",
+            paddingTop: props.paddingY,
+            paddingBottom: props.paddingY,
+            paddingLeft: props.paddingX,
+            paddingRight: props.paddingX,
+            backgroundColor: props.backgroundColor || undefined,
+          }}
+        >
+          {props.fullWidth ? children : inner}
+        </section>
+      </LayoutBackground>
     );
   },
 };
 
-const containerSchema = z.object({
-  gap: z.string().default("1.5rem"),
-  align: z.enum(["stretch", "center", "flex-start", "flex-end"]).default("stretch"),
-  justify: z.enum(["flex-start", "center", "flex-end", "space-between"]).default("flex-start"),
-  direction: z.enum(["row", "column"]).default("row"),
-  wrap: z.boolean().default(false),
-});
+const containerSchema = z
+  .object({
+    gap: z.string().default("1.5rem"),
+    align: z.enum(["stretch", "center", "flex-start", "flex-end"]).default("stretch"),
+    justify: z.enum(["flex-start", "center", "flex-end", "space-between"]).default("flex-start"),
+    direction: z.enum(["row", "column"]).default("row"),
+    wrap: z.boolean().default(false),
+  })
+  .merge(layoutBackgroundSchema);
 type ContainerProps = z.infer<typeof containerSchema>;
 
 export const containerBlock: BlockDefinition<ContainerProps> = {
@@ -75,6 +83,7 @@ export const containerBlock: BlockDefinition<ContainerProps> = {
     justify: "flex-start",
     direction: "row",
     wrap: false,
+    ...layoutBackgroundDefaults,
   },
   editorFields: [
     { key: "gap", label: "Column gap", type: "text" },
@@ -112,31 +121,34 @@ export const containerBlock: BlockDefinition<ContainerProps> = {
     { key: "wrap", label: "Wrap columns", type: "boolean" },
   ],
   component: ({ props, style, children }) => (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: props.direction,
-        flexWrap: props.wrap ? "wrap" : "nowrap",
-        gap: props.gap,
-        alignItems: props.align,
-        justifyContent: props.justify,
-        width: "100%",
-        ...style,
-      }}
-    >
-      {children}
-    </div>
+    <LayoutBackground props={props} style={{ width: "100%", ...(style as object) }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: props.direction,
+          flexWrap: props.wrap ? "wrap" : "nowrap",
+          gap: props.gap,
+          alignItems: props.align,
+          justifyContent: props.justify,
+          width: "100%",
+        }}
+      >
+        {children}
+      </div>
+    </LayoutBackground>
   ),
 };
 
-const columnSchema = z.object({
-  widthPercent: z.number().min(5).max(100).default(50),
-  widthPercentMd: z.number().min(5).max(100).optional(),
-  widthPercentSm: z.number().min(5).max(100).optional(),
-  minHeight: z.string().default("80px"),
-  padding: z.string().default("0.5rem"),
-  backgroundColor: z.string().default(""),
-});
+const columnSchema = z
+  .object({
+    widthPercent: z.number().min(5).max(100).default(50),
+    widthPercentMd: z.number().min(5).max(100).optional(),
+    widthPercentSm: z.number().min(5).max(100).optional(),
+    minHeight: z.string().default("80px"),
+    padding: z.string().default("0.5rem"),
+    backgroundColor: z.string().default(""),
+  })
+  .merge(layoutBackgroundSchema);
 type ColumnProps = z.infer<typeof columnSchema>;
 
 function columnCssVars(props: ColumnProps): Record<string, string> {
@@ -159,6 +171,7 @@ export const columnBlock: BlockDefinition<ColumnProps> = {
     minHeight: "80px",
     padding: "0.5rem",
     backgroundColor: "",
+    ...layoutBackgroundDefaults,
   },
   editorFields: [
     { key: "widthPercent", label: "Width desktop (%)", type: "number" },
@@ -169,18 +182,23 @@ export const columnBlock: BlockDefinition<ColumnProps> = {
     { key: "backgroundColor", label: "Background", type: "color" },
   ],
   component: ({ props, style, children }) => (
-    <div
+    <LayoutBackground
+      props={props}
       className="fc-column"
       style={{
         ...columnCssVars(props),
         minHeight: props.minHeight,
+        ...(style as object),
+      }}
+      contentStyle={{
+        minHeight: props.minHeight,
         padding: props.padding,
         backgroundColor: props.backgroundColor || undefined,
-        ...style,
+        height: "100%",
       }}
     >
       {children}
-    </div>
+    </LayoutBackground>
   ),
 };
 
@@ -193,16 +211,23 @@ export function createColumnLayout(count: 2 | 3 | 4, newId: () => string) {
   return {
     id: newId(),
     type: "section" as const,
-    props: { fullWidth: true, maxWidth: "1200px", paddingY: "2rem", paddingX: "1.5rem", backgroundColor: "" },
+    props: {
+      fullWidth: true,
+      maxWidth: "1200px",
+      paddingY: "2rem",
+      paddingX: "1.5rem",
+      backgroundColor: "",
+      ...layoutBackgroundDefaults,
+    },
     children: [
       {
         id: newId(),
         type: "container" as const,
-        props: { gap: "1.5rem", align: "stretch", justify: "flex-start", direction: "row", wrap: false },
+        props: { gap: "1.5rem", align: "stretch", justify: "flex-start", direction: "row", wrap: false, ...layoutBackgroundDefaults },
         children: widths.map((w) => ({
           id: newId(),
           type: "column" as const,
-          props: { widthPercent: w, minHeight: "120px", padding: "0.5rem", backgroundColor: "" },
+          props: { widthPercent: w, minHeight: "120px", padding: "0.5rem", backgroundColor: "", ...layoutBackgroundDefaults },
           children: [],
         })),
       },

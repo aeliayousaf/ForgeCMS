@@ -1,4 +1,5 @@
 import type { BlockNode, BlockType } from "@forgecms/shared";
+import { snapPercentToGrid } from "./column-layout";
 
 export type TreePath = number[];
 
@@ -288,14 +289,41 @@ export function resizeColumns(
     const right = children.find((c) => c.id === rightColumnId);
     if (!left || !right) return container;
 
+    const minPct = 8; // 1/12 of the row
     const fallback = Number(left.props.widthPercent ?? 50);
     const leftW = Number(left.props[widthKey] ?? fallback);
     const rightW = Number(right.props[widthKey] ?? Number(right.props.widthPercent ?? 50));
-    const nextLeft = Math.min(90, Math.max(10, leftW + deltaPercent));
-    const nextRight = Math.min(90, Math.max(10, rightW - deltaPercent));
+    const pairTotal = leftW + rightW;
+
+    let nextLeft = leftW + deltaPercent;
+    nextLeft = Math.min(pairTotal - minPct, Math.max(minPct, nextLeft));
+    nextLeft = snapPercentToGrid(nextLeft);
+    nextLeft = Math.min(pairTotal - minPct, Math.max(minPct, nextLeft));
+    const nextRight = pairTotal - nextLeft;
 
     left.props = { ...left.props, [widthKey]: nextLeft };
     right.props = { ...right.props, [widthKey]: nextRight };
     return { ...container, children };
+  });
+}
+
+export function applyContainerColumnWidths(
+  blocks: BlockNode[],
+  containerId: string,
+  percents: number[],
+  widthKey: "widthPercent" | "widthPercentMd" | "widthPercentSm" = "widthPercent",
+): BlockNode[] {
+  return updateTree(blocks, containerId, (container) => {
+    const columns = (container.children ?? []).filter((c) => c.type === "column");
+    if (columns.length !== percents.length) return container;
+    let colIdx = 0;
+    return {
+      ...container,
+      children: (container.children ?? []).map((child) => {
+        if (child.type !== "column") return child;
+        const pct = percents[colIdx++] ?? child.props.widthPercent;
+        return { ...child, props: { ...child.props, [widthKey]: pct } };
+      }),
+    };
   });
 }
