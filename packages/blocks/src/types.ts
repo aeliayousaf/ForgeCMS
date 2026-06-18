@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { ZodType, ZodTypeDef } from "zod";
 import type { BlockType } from "@forgecms/shared";
 
@@ -27,6 +27,7 @@ export interface BlockRenderProps<P = Record<string, unknown>> {
   props: P;
   className?: string;
   style?: Record<string, string>;
+  children?: ReactNode;
 }
 
 export interface BlockDefinition<P = Record<string, unknown>> {

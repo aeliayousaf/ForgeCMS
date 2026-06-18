@@ -11,9 +11,13 @@ import {
 } from "./components/sections.js";
 import { contactFormBlock, newsletterFormBlock } from "./components/forms.js";
 import { customHtmlBlock } from "./components/advanced.js";
+import { sectionBlock, containerBlock, columnBlock } from "./components/layout.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const definitions: BlockDefinition<any>[] = [
+  sectionBlock,
+  containerBlock,
+  columnBlock,
   heroBlock,
   headingBlock,
   textBlock,

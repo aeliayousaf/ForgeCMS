@@ -6,18 +6,24 @@ import type { PageDocument } from "@forgecms/shared";
 const HTML_PROP_KEYS = new Set(["html"]);
 
 export function sanitizeDocument(doc: PageDocument): PageDocument {
+  function sanitizeBlock(block: PageDocument["blocks"][number]): PageDocument["blocks"][number] {
+    const props = { ...block.props };
+    for (const key of Object.keys(props)) {
+      if (HTML_PROP_KEYS.has(key) && typeof props[key] === "string") {
+        props[key] = DOMPurify.sanitize(props[key] as string, {
+          ADD_ATTR: ["target", "rel"],
+        });
+      }
+    }
+    return {
+      ...block,
+      props,
+      children: block.children?.map(sanitizeBlock),
+    };
+  }
+
   return {
     version: 1,
-    blocks: doc.blocks.map((block) => {
-      const props = { ...block.props };
-      for (const key of Object.keys(props)) {
-        if (HTML_PROP_KEYS.has(key) && typeof props[key] === "string") {
-          props[key] = DOMPurify.sanitize(props[key] as string, {
-            ADD_ATTR: ["target", "rel"],
-          });
-        }
-      }
-      return { ...block, props };
-    }),
+    blocks: doc.blocks.map(sanitizeBlock),
   };
 }

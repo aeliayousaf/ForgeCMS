@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 export const BLOCK_TYPES = [
+  "section",
+  "container",
+  "column",
   "hero",
   "text",
   "heading",

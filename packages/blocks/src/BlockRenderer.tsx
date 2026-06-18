@@ -1,9 +1,9 @@
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { BlockNode, PageDocument } from "@forgecms/shared";
 import { getBlock } from "./registry.js";
 import { resolveStyles } from "./styles.js";
 
-function RenderNode({ node }: { node: BlockNode }) {
+function RenderNode({ node }: { node: BlockNode }): ReactNode {
   const def = getBlock(node.type);
   if (!def) {
     return (
@@ -15,12 +15,12 @@ function RenderNode({ node }: { node: BlockNode }) {
   const { style, hidden } = resolveStyles(node.styles);
   if (hidden) return null;
 
-  // Validate/normalize props against the block schema, falling back to defaults.
   const parsed = def.schema.safeParse({ ...def.defaultProps, ...node.props });
   const props = parsed.success ? parsed.data : def.defaultProps;
   const Component = def.component;
+  const childNodes = node.children?.map((child) => <RenderNode key={child.id} node={child} />);
 
-  return <Component props={props} style={style as Record<string, string>} />;
+  return <Component props={props} style={style as Record<string, string>} children={childNodes} />;
 }
 
 export function BlockRenderer({ document }: { document: PageDocument }) {
