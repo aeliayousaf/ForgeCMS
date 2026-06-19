@@ -1,9 +1,11 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import { Permissions } from "../../common/decorators";
+import { PermissionsGuard } from "../../auth/permissions.guard";
 import { PERMISSIONS } from "@forgecms/shared";
 import { ReactBitsService } from "./react-bits.service";
 
 @Controller("integrations/react-bits")
+@UseGuards(PermissionsGuard)
 export class ReactBitsController {
   constructor(private readonly reactBits: ReactBitsService) {}
 

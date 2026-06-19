@@ -3,15 +3,10 @@
 import { useEffect, useState } from "react";
 import { Search, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
+import { searchReactBitsLocal, type ReactBitsSearchResult } from "@/lib/react-bits/search";
 import { PaletteDraggable, paletteReactBitsId } from "./PaletteDraggable";
 
-export interface ReactBitsSearchResult {
-  slug: string;
-  title: string;
-  description: string;
-  category: string;
-  supportsChildren: boolean;
-}
+export type { ReactBitsSearchResult };
 
 const CATEGORY_LABELS: Record<string, string> = {
   background: "Background",
@@ -33,7 +28,7 @@ export function ReactBitsPanel({ onInsert }: { onInsert: (slug: string) => void 
       const path = q ? `/integrations/react-bits?q=${encodeURIComponent(q)}&limit=40` : "/integrations/react-bits?limit=40";
       api<ReactBitsSearchResult[]>(path)
         .then(setResults)
-        .catch(() => setResults([]))
+        .catch(() => setResults(searchReactBitsLocal(q)))
         .finally(() => setLoading(false));
     }, 250);
     return () => clearTimeout(t);

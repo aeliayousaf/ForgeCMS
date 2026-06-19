@@ -40,7 +40,9 @@ export class ReactBitsService implements OnModuleInit {
   }
 
   private loadCatalog(): ReactBitsCatalogItem[] {
+    const envPath = process.env.REACT_BITS_CATALOG_PATH;
     const candidates = [
+      ...(envPath ? [envPath] : []),
       join(process.cwd(), "packages/shared/react-bits.catalog.json"),
       join(process.cwd(), "../../packages/shared/react-bits.catalog.json"),
       join(__dirname, "../../../../../packages/shared/react-bits.catalog.json"),
@@ -48,6 +50,7 @@ export class ReactBitsService implements OnModuleInit {
     for (const p of candidates) {
       try {
         const raw = JSON.parse(readFileSync(p, "utf8"));
+        this.logger.log(`React Bits catalog loaded from ${p} (${(raw.components ?? []).length} entries)`);
         return raw.components ?? [];
       } catch {
         // try next path
