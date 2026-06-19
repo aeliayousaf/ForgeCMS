@@ -45,6 +45,15 @@ export class AiService {
     private readonly themes: ThemesService,
   ) {}
 
+  async getStatus() {
+    const cfg = await this.settings.getAiConfig();
+    return {
+      configured: Boolean(cfg.apiKey?.trim()),
+      model: cfg.model,
+      baseUrl: cfg.baseUrl,
+    };
+  }
+
   private async client() {
     const cfg = await this.settings.getAiConfig();
     if (!cfg.apiKey) {

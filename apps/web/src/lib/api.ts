@@ -48,7 +48,7 @@ function parseApiErrorBody(
   const errors = nested?.errors ?? data?.errors;
   const raw = nested?.message ?? data?.message;
 
-  const message =
+  let message =
     typeof raw === "string"
       ? raw
       : Array.isArray(raw)
@@ -58,6 +58,15 @@ function parseApiErrorBody(
           : text && !data
             ? `Request failed (${status})`
             : "Request failed";
+
+  if (errors && Object.keys(errors).length > 0) {
+    const detail = Object.entries(errors)
+      .flatMap(([field, msgs]) => (msgs ?? []).map((m) => `${field}: ${m}`))
+      .join("; ");
+    if (detail) {
+      message = message === "Validation failed" || message === "Request failed" ? detail : `${message} (${detail})`;
+    }
+  }
 
   return { message, errors };
 }

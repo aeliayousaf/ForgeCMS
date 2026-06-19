@@ -13,6 +13,12 @@ export class AiController {
   constructor(private readonly ai: AiService) {}
 
   @Permissions(PERMISSIONS.AI_USE)
+  @Get("status")
+  status() {
+    return this.ai.getStatus();
+  }
+
+  @Permissions(PERMISSIONS.AI_USE)
   @Post("generate")
   generate(@Body() body: unknown, @CurrentUser() user: AuthUser) {
     const dto = parse(aiGenerateSchema, body);

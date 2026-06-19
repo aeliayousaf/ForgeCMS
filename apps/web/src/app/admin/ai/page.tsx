@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
@@ -15,9 +15,25 @@ interface BuildSiteResult {
   published: boolean;
 }
 
+interface AiStatus {
+  configured: boolean;
+  model: string;
+}
+
+function formatError(e: unknown): string {
+  if (e instanceof ApiError) {
+    if (e.message.includes("API key")) {
+      return `${e.message} Go to Settings → AI Integration and add your OpenAI-compatible API key.`;
+    }
+    return e.message;
+  }
+  return "Generation failed";
+}
+
 export default function AiPage() {
   const router = useRouter();
   const [tab, setTab] = useState<"build" | "content">("build");
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
 
   const [prompt, setPrompt] = useState("");
   const [publish, setPublish] = useState(true);
@@ -29,32 +45,49 @@ export default function AiPage() {
   const [kind, setKind] = useState("rewrite");
   const [output, setOutput] = useState("");
 
+  useEffect(() => {
+    api<AiStatus>("/ai/status").then(setAiStatus).catch(() => setAiStatus({ configured: false, model: "" }));
+  }, []);
+
   async function buildSite() {
+    const trimmed = prompt.trim();
+    if (trimmed.length < 20) {
+      setError("Please describe your business in at least a few sentences (20+ characters).");
+      return;
+    }
     setBusy(true);
     setError(null);
     setResult(null);
     try {
       const res = await api<BuildSiteResult>("/ai/build-site", {
         method: "POST",
-        json: { prompt, publish },
+        json: { prompt: trimmed, publish },
       });
       setResult(res);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Generation failed");
+      setError(formatError(e));
     } finally {
       setBusy(false);
     }
   }
 
   async function generate() {
+    const trimmed = contentPrompt.trim();
+    if (!trimmed) {
+      setError("Enter a prompt describing what you want to generate.");
+      return;
+    }
     setBusy(true);
     setError(null);
     setOutput("");
     try {
-      const res = await api<{ text?: string }>("/ai/generate", { method: "POST", json: { kind, prompt: contentPrompt } });
+      const res = await api<{ text?: string }>("/ai/generate", {
+        method: "POST",
+        json: { kind, prompt: trimmed },
+      });
       setOutput(res.text ?? "");
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Generation failed");
+      setError(formatError(e));
     } finally {
       setBusy(false);
     }
@@ -64,6 +97,16 @@ export default function AiPage() {
     <div>
       <PageHeader title="AI Assistant" subtitle="Describe your business — get a full site with pages, menu, and theme" />
       <div className="max-w-3xl p-8">
+        {aiStatus && !aiStatus.configured && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            No AI API key is configured.{" "}
+            <Link href="/admin/settings" className="font-medium text-indigo-700 underline">
+              Add one in Settings → AI Integration
+            </Link>{" "}
+            before generating content.
+          </div>
+        )}
+
         <div className="mb-6 flex gap-2">
           <button
             onClick={() => setTab("build")}
@@ -96,6 +139,7 @@ export default function AiPage() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
               />
+              <p className="mt-1 text-xs text-slate-400">{prompt.trim().length} / 20 min characters</p>
             </div>
 
             <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -105,7 +149,7 @@ export default function AiPage() {
 
             <button
               onClick={buildSite}
-              disabled={busy || prompt.trim().length < 20}
+              disabled={busy || prompt.trim().length < 20 || aiStatus?.configured === false}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
               {busy ? "Building your site…" : "Build website"}
@@ -158,7 +202,11 @@ export default function AiPage() {
               value={contentPrompt}
               onChange={(e) => setContentPrompt(e.target.value)}
             />
-            <button onClick={generate} disabled={busy} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">
+            <button
+              onClick={generate}
+              disabled={busy || !contentPrompt.trim() || aiStatus?.configured === false}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
               {busy ? "Generating..." : "Generate"}
             </button>
             {output && <pre className="whitespace-pre-wrap rounded-lg bg-slate-50 p-4 text-sm">{output}</pre>}
