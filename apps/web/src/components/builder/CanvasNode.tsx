@@ -246,26 +246,46 @@ function SortableCanvasBlock({
     >
       {/* Drag handle bar — always visible when selected */}
       <div
-        {...attributes}
-        {...listeners}
-        className={`absolute left-0 right-0 top-0 z-30 flex h-7 cursor-grab items-center justify-center gap-1 bg-slate-800/90 text-white active:cursor-grabbing ${
+        className={`absolute left-0 right-0 top-0 z-30 flex h-7 items-center bg-slate-800/90 text-white ${
           selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
         }`}
       >
-        <GripVertical size={14} />
-        <span className="text-[10px] font-medium uppercase tracking-wide">
-          {node.type === "reactBits"
-            ? (getReactBitsEntry(String(node.props.slug ?? ""))?.title ?? "React Bits")
-            : (def?.label ?? node.type)}
-        </span>
-      </div>
-      <div className={`absolute right-2 top-8 z-30 flex gap-1 ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onDuplicate(); }} className="rounded bg-slate-800 p-1 text-white shadow">
-          <Copy size={14} />
-        </button>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded bg-red-600 p-1 text-white shadow">
-          <Trash2 size={14} />
-        </button>
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex min-w-0 flex-1 cursor-grab items-center justify-center gap-1 px-2 active:cursor-grabbing"
+        >
+          <GripVertical size={14} className="shrink-0" />
+          <span className="truncate text-[10px] font-medium uppercase tracking-wide">
+            {node.type === "reactBits"
+              ? (getReactBitsEntry(String(node.props.slug ?? ""))?.title ?? "React Bits")
+              : (def?.label ?? node.type)}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5 pr-1">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate();
+            }}
+            className="rounded p-0.5 text-white/90 hover:bg-white/15"
+            title="Duplicate"
+          >
+            <Copy size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="rounded p-0.5 text-white/90 hover:bg-red-500"
+            title="Delete"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
       </div>
 
       {isLayout && renderChildren ? (
