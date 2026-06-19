@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { getReactBitsEntry } from "@/lib/react-bits/manifest";
+import { getReactBitsMeta } from "@/lib/react-bits/manifest-meta";
 
 function resolveSourcePath(sourceFile: string): string | null {
   const cwd = process.cwd();
@@ -16,7 +16,7 @@ function resolveSourcePath(sourceFile: string): string | null {
 
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const entry = getReactBitsEntry(slug);
+  const entry = getReactBitsMeta(slug);
   if (!entry?.sourceFile) {
     return Response.json({ error: "Component not found" }, { status: 404 });
   }
