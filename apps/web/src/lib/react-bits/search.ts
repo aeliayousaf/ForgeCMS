@@ -1,4 +1,4 @@
-import { REACT_BITS_MANIFEST } from "./manifest";
+import { REACT_BITS_MANIFEST, REACT_BITS_SLUGS } from "./manifest";
 
 export interface ReactBitsSearchResult {
   slug: string;
@@ -8,8 +8,10 @@ export interface ReactBitsSearchResult {
   supportsChildren: boolean;
 }
 
+export const REACT_BITS_COUNT = REACT_BITS_SLUGS.length;
+
 /** Client-side search over the bundled manifest (works without the API). */
-export function searchReactBitsLocal(query: string, limit = 40): ReactBitsSearchResult[] {
+export function searchReactBitsLocal(query: string, limit?: number): ReactBitsSearchResult[] {
   const q = query.trim().toLowerCase();
   let results = Object.values(REACT_BITS_MANIFEST).map(
     ({ slug, title, description, category, supportsChildren }) => ({
@@ -31,5 +33,8 @@ export function searchReactBitsLocal(query: string, limit = 40): ReactBitsSearch
     );
   }
 
-  return results.slice(0, Math.min(limit, 100));
+  results.sort((a, b) => a.title.localeCompare(b.title));
+
+  const max = limit ?? (q ? 100 : REACT_BITS_COUNT);
+  return results.slice(0, max);
 }
