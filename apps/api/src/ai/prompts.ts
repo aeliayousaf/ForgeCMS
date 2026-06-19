@@ -31,18 +31,11 @@ Block prop guidance:
 Site header, footer, and navigation are provided automatically by the theme — do NOT add header/footer blocks.
 Always return STRICTLY valid JSON with no markdown fencing or commentary.`;
 
-export const BUILD_SITE_SYSTEM = `${SYSTEM_BLOCKS}
-
-Layout guidance:
-- Wrap major page areas in section blocks (hero area, features, testimonials, CTA).
-- Use container + column for multi-column layouts when appropriate.
-- Home page structure: section(hero) → section(features) → section(testimonials) → section(cta).
-- Each block needs a unique "id" string. Nested blocks go in "children".
-
+export const BUILD_SITE_PLAN_SYSTEM = `You are ForgeCMS's website planner. You output site structure and copy briefs — not page block JSON.
 Available theme keys: ${THEME_KEYS.join(", ")}
-Pick the theme that best matches the business style and industry.`;
+Always return STRICTLY valid JSON with no markdown fencing or commentary.`;
 
-export const buildSitePrompt = (userPrompt: string) => `Build a complete small business website from this description:
+export const buildSitePlanPrompt = (userPrompt: string) => `Plan a small business website from this description:
 
 """
 ${userPrompt}
@@ -56,24 +49,48 @@ Return STRICTLY valid JSON of this shape:
   "menu": [
     { "label": "Home", "url": "/" },
     { "label": "About", "url": "/about" },
-    { "label": "Services", "url": "/services" },
     { "label": "Contact", "url": "/contact" }
   ],
   "pages": [
-    { "title": "Home", "slug": "home", "document": { "version": 1, "blocks": [...] } },
-    { "title": "About", "slug": "about", "document": { "version": 1, "blocks": [...] } }
+    { "title": "Home", "slug": "home", "summary": "One sentence: hero headline angle, 3 feature topics, testimonial theme, CTA goal" },
+    { "title": "About", "slug": "about", "summary": "One sentence: company story and value props to cover" },
+    { "title": "Contact", "slug": "contact", "summary": "One sentence: invite contact, mention location or hours if relevant" }
   ]
 }
 
 Requirements:
-- Create exactly 3 pages: Home, one main content page (About or Services), and Contact.
-- Keep copy concise; 4–6 blocks per page maximum.
-- Home: hero, features, testimonials, and a CTA block.
-- Contact page must include a contactForm block.
-- Menu must list every main page; home uses url "/" (not "/home").
-- Use section wrappers for visual structure where helpful.
-- Write realistic, specific copy tailored to the description — no lorem ipsum.
+- Exactly 3 pages: Home, one main page (About or Services — pick what fits), and Contact.
+- If the description is brief or vague, infer sensible marketing copy (features, audience, CTA).
+- Menu must list every page; home uses url "/" (not "/home").
+- Summaries must be specific to the business — no lorem ipsum.
 - themeKey must be one of: ${THEME_KEYS.join(", ")}.`;
+
+export const buildSitePagePrompt = (input: {
+  userPrompt: string;
+  siteName: string;
+  title: string;
+  slug: string;
+  summary: string;
+}) => `Build ONE page for "${input.siteName}".
+
+Business description:
+"""
+${input.userPrompt}
+"""
+
+Page: ${input.title} (slug: ${input.slug})
+Content brief: ${input.summary}
+
+Return STRICTLY valid JSON — a single page document only:
+{ "version": 1, "blocks": [...] }
+
+Requirements:
+- 4–5 blocks maximum. Keep all copy concise.
+- Wrap blocks in section containers where helpful.
+- Home (slug home): hero, features (3 items), testimonials (2 items), cta.
+- Contact (slug contact): heading, short text, contactForm block.
+- Other pages: heading, text, and one of features/faq/cta as appropriate.
+- Each block needs a unique "id". Realistic copy tailored to the business.`;
 
 export const websitePrompt = (input: {
   businessName: string;

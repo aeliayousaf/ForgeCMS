@@ -152,7 +152,7 @@ export default function AiPage() {
               disabled={busy || prompt.trim().length < 20 || aiStatus?.configured === false}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              {busy ? "Building your site… (may take 1–3 min)" : "Build website"}
+              {busy ? "Building your site… (may take 2–4 min)" : "Build website"}
             </button>
 
             {result && (

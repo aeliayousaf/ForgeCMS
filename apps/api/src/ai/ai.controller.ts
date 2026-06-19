@@ -26,6 +26,12 @@ export class AiController {
   }
 
   @Permissions(PERMISSIONS.AI_USE)
+  @Post("test-connection")
+  testConnection() {
+    return this.ai.testConnection();
+  }
+
+  @Permissions(PERMISSIONS.AI_USE)
   @Post("build-site")
   buildSite(@Body() body: unknown, @CurrentUser() user: AuthUser) {
     const dto = parse(aiBuildSiteSchema, body);

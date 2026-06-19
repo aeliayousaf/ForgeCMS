@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const [ai, setAi] = useState({ apiKey: "", baseUrl: "", model: "" });
   const [aiConfigured, setAiConfigured] = useState(false);
   const [saved, setSaved] = useState("");
+  const [aiTest, setAiTest] = useState<{ ok?: boolean; message?: string } | null>(null);
+  const [aiTesting, setAiTesting] = useState(false);
 
   useEffect(() => {
     api<{ siteName: string; siteDescription: string }>("/settings/public").then((s) =>
@@ -40,6 +42,29 @@ export default function SettingsPage() {
     flash("AI settings saved");
     setAiConfigured(true);
     setAi({ ...ai, apiKey: "" });
+    setAiTest(null);
+  }
+
+  async function testAiConnection() {
+    setAiTesting(true);
+    setAiTest(null);
+    try {
+      const res = await api<{ ok: boolean; model: string; latencyMs: number; reply: string }>(
+        "/ai/test-connection",
+        { method: "POST" },
+      );
+      setAiTest({
+        ok: true,
+        message: `Connected (${res.model}, ${res.latencyMs}ms): ${res.reply}`,
+      });
+    } catch (e) {
+      setAiTest({
+        ok: false,
+        message: e instanceof Error ? e.message : "Connection test failed",
+      });
+    } finally {
+      setAiTesting(false);
+    }
   }
 
   function flash(msg: string) {
@@ -96,6 +121,21 @@ export default function SettingsPage() {
               onChange={(e) => setAi({ ...ai, model: e.target.value })}
             />
             <button onClick={saveAi} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Save</button>
+            <button
+              type="button"
+              onClick={testAiConnection}
+              disabled={!aiConfigured || aiTesting}
+              className="ml-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"
+            >
+              {aiTesting ? "Testing…" : "Test connection"}
+            </button>
+            {aiTest && (
+              <div
+                className={`rounded-lg p-3 text-sm ${aiTest.ok ? "bg-green-50 text-green-800" : "bg-red-50 text-red-700"}`}
+              >
+                {aiTest.message}
+              </div>
+            )}
           </div>
         </section>
       </div>

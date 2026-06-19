@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
-import OpenAI, { APIError } from "openai";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
@@ -15,23 +14,42 @@ import {
   type BlockNode,
   type PageDocument,
 } from "@forgecms/shared";
-import { BUILD_SITE_SYSTEM, SYSTEM_BLOCKS, buildSitePrompt, websitePrompt } from "./prompts";
+import {
+  BUILD_SITE_PLAN_SYSTEM,
+  SYSTEM_BLOCKS,
+  buildSitePagePrompt,
+  buildSitePlanPrompt,
+  websitePrompt,
+} from "./prompts";
 import { sanitizeDocument } from "../common/sanitize";
 import { z } from "zod";
 
-const buildSiteResponseSchema = z.object({
+const buildSitePlanSchema = z.object({
   siteName: z.string().min(1),
   siteDescription: z.string().optional(),
   themeKey: z.string().optional(),
   menu: z.array(z.object({ label: z.string().min(1), url: z.string().min(1) })).min(1),
-  pages: z.array(
-    z.object({
-      title: z.string(),
-      slug: z.string(),
-      document: pageDocumentSchema,
-    }),
-  ).min(1),
+  pages: z
+    .array(
+      z.object({
+        title: z.string(),
+        slug: z.string(),
+        summary: z.string().min(1),
+      }),
+    )
+    .min(1)
+    .max(5),
 });
+
+class ProviderHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ProviderHttpError";
+  }
+}
 
 @Injectable()
 export class AiService {
@@ -47,33 +65,107 @@ export class AiService {
 
   async getStatus() {
     const cfg = await this.settings.getAiConfig();
+    const resolved = this.resolveAiConfig(cfg);
     return {
       configured: Boolean(cfg.apiKey?.trim()),
-      model: cfg.model,
-      baseUrl: cfg.baseUrl,
+      model: resolved.model,
+      baseUrl: resolved.baseUrl,
     };
   }
 
-  private async client() {
-    const cfg = await this.settings.getAiConfig();
-    if (!cfg.apiKey) {
-      throw new BadRequestException(
-        "No AI API key configured. Add one in Settings to use the AI Assistant.",
-      );
+  /** OpenRouter requires provider/model (e.g. openai/gpt-4o-mini). */
+  private resolveAiConfig(cfg: { apiKey: string; baseUrl: string; model: string }) {
+    const baseUrl = cfg.baseUrl.replace(/\/$/, "");
+    let model = cfg.model.trim() || "gpt-4o-mini";
+    if (/openrouter\.ai/i.test(baseUrl) && !model.includes("/")) {
+      model = `openai/${model}`;
     }
     const appUrl = process.env.APP_URL?.split(",")[0]?.trim() ?? "https://getforgecms.com";
-    return {
-      openai: new OpenAI({
-        apiKey: cfg.apiKey,
-        baseURL: cfg.baseUrl.replace(/\/$/, ""),
-        timeout: 300_000,
-        maxRetries: 1,
-        defaultHeaders: {
-          "HTTP-Referer": appUrl,
+    return { apiKey: cfg.apiKey, baseUrl, model, appUrl };
+  }
+
+  private async requestChat(
+    cfg: ReturnType<AiService["resolveAiConfig"]>,
+    system: string,
+    user: string,
+    json: boolean,
+    maxTokens: number,
+  ): Promise<string> {
+    const url = `${cfg.baseUrl}/chat/completions`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 300_000);
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cfg.apiKey}`,
+          "HTTP-Referer": cfg.appUrl,
           "X-Title": "ForgeCMS",
         },
-      }),
-      model: cfg.model,
+        body: JSON.stringify({
+          model: cfg.model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          temperature: 0.7,
+          max_tokens: maxTokens,
+          ...(json ? { response_format: { type: "json_object" } } : {}),
+        }),
+        signal: controller.signal,
+      });
+
+      const rawBody = await res.text();
+      if (!res.ok) {
+        let detail = rawBody.slice(0, 300);
+        try {
+          const parsed = JSON.parse(rawBody) as { error?: { message?: string } };
+          detail = parsed.error?.message ?? detail;
+        } catch {
+          /* keep raw snippet */
+        }
+        throw new ProviderHttpError(detail, res.status);
+      }
+
+      let parsed: { choices?: { message?: { content?: string } }[] };
+      try {
+        parsed = JSON.parse(rawBody) as typeof parsed;
+      } catch {
+        throw new Error(`Invalid JSON from AI provider (${rawBody.slice(0, 120)}…)`);
+      }
+
+      const content = parsed.choices?.[0]?.message?.content?.trim() ?? "";
+      if (!content) {
+        throw new BadRequestException("AI returned an empty response. Try again or use a different model.");
+      }
+      return content;
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      if (err instanceof Error && err.name === "AbortError") {
+        throw new Error("AI request timed out after 5 minutes");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async testConnection() {
+    const cfg = await this.settings.getAiConfig();
+    if (!cfg.apiKey?.trim()) {
+      throw new BadRequestException("No AI API key configured.");
+    }
+    const resolved = this.resolveAiConfig(cfg);
+    const started = Date.now();
+    const reply = await this.chat("You are a test assistant.", 'Reply with exactly the word "OK".', false, 32);
+    return {
+      ok: true,
+      model: resolved.model,
+      baseUrl: resolved.baseUrl,
+      reply: reply.slice(0, 80),
+      latencyMs: Date.now() - started,
     };
   }
 
@@ -82,34 +174,31 @@ export class AiService {
     return /premature close|ECONNRESET|socket hang up|fetch failed|ETIMEDOUT|502|503/i.test(msg);
   }
 
-  private async chat(system: string, user: string, json: boolean): Promise<string> {
-    const maxAttempts = 3;
+  private async chat(
+    system: string,
+    user: string,
+    json: boolean,
+    maxTokens = json ? 4_096 : 2_048,
+  ): Promise<string> {
+    const cfg = await this.settings.getAiConfig();
+    if (!cfg.apiKey?.trim()) {
+      throw new BadRequestException(
+        "No AI API key configured. Add one in Settings to use the AI Assistant.",
+      );
+    }
+    const resolved = this.resolveAiConfig(cfg);
+    const maxAttempts = 4;
     let lastErr: unknown;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const { openai, model } = await this.client();
-        const res = await openai.chat.completions.create({
-          model,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: user },
-          ],
-          temperature: 0.7,
-          max_tokens: json ? 12_000 : 2_048,
-          response_format: json ? { type: "json_object" } : undefined,
-        });
-        const content = res.choices[0]?.message?.content?.trim() ?? "";
-        if (!content) {
-          throw new BadRequestException("AI returned an empty response. Try again or use a different model.");
-        }
-        return content;
+        return await this.requestChat(resolved, system, user, json, maxTokens);
       } catch (err) {
         lastErr = err;
         if (err instanceof BadRequestException) throw err;
         if (attempt < maxAttempts && this.isRetryableProviderError(err)) {
-          this.logger.warn(`AI chat attempt ${attempt} failed, retrying…`);
-          await new Promise((r) => setTimeout(r, 2_000 * attempt));
+          this.logger.warn(`AI chat attempt ${attempt}/${maxAttempts} failed (${resolved.model}), retrying…`);
+          await new Promise((r) => setTimeout(r, 3_000 * attempt));
           continue;
         }
         break;
@@ -123,8 +212,9 @@ export class AiService {
 
   private formatProviderError(err: unknown): string {
     const raw = err instanceof Error ? err.message : String(err);
+    const status = err instanceof ProviderHttpError ? err.status : undefined;
     const isCloudflareBlock =
-      (err instanceof APIError && err.status === 403) ||
+      status === 403 ||
       /cloudflare|challenge-platform|Enable JavaScript and cookies/i.test(raw);
 
     if (isCloudflareBlock) {
@@ -133,21 +223,28 @@ export class AiService {
         "Use OpenRouter instead: Base URL https://openrouter.ai/api/v1, your OpenRouter API key, and model openai/gpt-4o-mini."
       );
     }
-    if (err instanceof APIError) {
-      if (err.status === 401) return "Invalid API key. Check your key in Settings → AI Integration.";
-      if (err.status === 429) return "AI rate limit exceeded. Wait a moment or switch provider/model.";
-      if (err.status === 402) return "OpenRouter credits exhausted. Add credits at openrouter.ai/settings/credits.";
+    if (status === 401) return "Invalid API key. Check your key in Settings → AI Integration.";
+    if (status === 429) return "AI rate limit exceeded. Wait a moment or switch provider/model.";
+    if (status === 402) return "OpenRouter credits exhausted. Add credits at openrouter.ai/settings/credits.";
+    if (status !== undefined) {
       const brief = raw.length > 180 ? `${raw.slice(0, 180)}…` : raw;
-      return `AI provider error (${err.status}): ${brief}`;
+      return `AI provider error (${status}): ${brief}`;
     }
-    if (/premature close|ECONNRESET|socket hang up|fetch failed|ETIMEDOUT/i.test(raw)) {
+    if (/premature close|ECONNRESET|socket hang up|fetch failed|ETIMEDOUT|aborted/i.test(raw)) {
       return (
-        "Connection to the AI provider closed early (often a timeout or overloaded model). " +
-        "Try again in a minute, use model openai/gpt-4o-mini, or shorten your prompt."
+        "Connection to the AI provider closed early. Use Settings → Test connection first. " +
+        "If that fails: confirm Base URL https://openrouter.ai/api/v1, model openai/gpt-4o-mini, and OpenRouter credits."
       );
     }
     const brief = raw.length > 220 ? `${raw.slice(0, 220)}…` : raw;
     return brief;
+  }
+
+  private rethrowStep(step: string, err: unknown): never {
+    if (err instanceof BadRequestException) {
+      throw new BadRequestException(`${step}: ${err.message}`);
+    }
+    throw err;
   }
 
   private async record(userId: string | undefined, kind: string, prompt: string, response: string) {
@@ -242,24 +339,62 @@ export class AiService {
   }
 
   async buildSite(userId: string | undefined, input: AiBuildSiteInput) {
-    const raw = await this.chat(BUILD_SITE_SYSTEM, buildSitePrompt(input.prompt), true);
-    await this.record(userId, "build-site", input.prompt, raw);
-
-    let data: z.infer<typeof buildSiteResponseSchema>;
+    this.logger.log("buildSite: planning site structure…");
+    let planRaw: string;
     try {
-      const json = this.parseAiJson(raw) as Record<string, unknown>;
-      if (Array.isArray(json.pages)) {
-        json.pages = (json.pages as Record<string, unknown>[]).map((p) => ({
-          ...p,
-          document: this.coercePageDocument(p.document),
-        }));
-      }
-      data = buildSiteResponseSchema.parse(json);
+      planRaw = await this.chat(
+        BUILD_SITE_PLAN_SYSTEM,
+        buildSitePlanPrompt(input.prompt),
+        true,
+        2_048,
+      );
     } catch (err) {
-      if (err instanceof BadRequestException) throw err;
-      this.logger.warn(`buildSite parse error: ${String(err)}`);
-      throw new BadRequestException("AI generation failed to produce a valid site. Try again.");
+      this.rethrowStep("Site planning failed", err);
     }
+    await this.record(userId, "build-site-plan", input.prompt, planRaw!);
+
+    let plan: z.infer<typeof buildSitePlanSchema>;
+    try {
+      plan = buildSitePlanSchema.parse(this.parseAiJson(planRaw!));
+    } catch (err) {
+      this.logger.warn(`buildSite plan parse error: ${String(err)}`);
+      throw new BadRequestException("AI could not plan the site structure. Try again.");
+    }
+
+    const pagesWithDocs: { title: string; slug: string; document: PageDocument }[] = [];
+    for (const page of plan.pages) {
+      this.logger.log(`buildSite: generating page "${page.title}"…`);
+      try {
+        const pageRaw = await this.chat(
+          SYSTEM_BLOCKS,
+          buildSitePagePrompt({
+            userPrompt: input.prompt,
+            siteName: plan.siteName,
+            title: page.title,
+            slug: page.slug,
+            summary: page.summary,
+          }),
+          true,
+          4_096,
+        );
+        await this.record(userId, `build-site-page:${page.slug}`, page.summary, pageRaw);
+        pagesWithDocs.push({
+          title: page.title,
+          slug: page.slug,
+          document: this.coercePageDocument(this.parseAiJson(pageRaw)),
+        });
+      } catch (err) {
+        this.rethrowStep(`Page "${page.title}" generation failed`, err);
+      }
+    }
+
+    const data = {
+      siteName: plan.siteName,
+      siteDescription: plan.siteDescription,
+      themeKey: plan.themeKey,
+      menu: plan.menu,
+      pages: pagesWithDocs,
+    };
 
     await this.settings.set(SETTINGS_KEYS.siteName, data.siteName);
     if (data.siteDescription) {
