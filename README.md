@@ -90,6 +90,18 @@ with all **134** pre-bundled `TS-TW` components (backgrounds, text effects, anim
 
 One-shot refresh of all components: `pnpm --filter @forgecms/web react-bits:full`
 
+## AI on VPS / self-hosted servers
+
+OpenAI (`api.openai.com`) often **blocks datacenter IPs** with a Cloudflare 403 — your API logs may show HTML instead of JSON. Use an OpenAI-compatible proxy such as [OpenRouter](https://openrouter.ai):
+
+| Setting | Value |
+|---------|--------|
+| Base URL | `https://openrouter.ai/api/v1` |
+| API key | Your OpenRouter key |
+| Model | `openai/gpt-4o-mini` |
+
+Configure under **Admin → Settings → AI Integration**, then rebuild the `api` container if you changed code.
+
 `apps/web/components.json` registers the `@react-bits` registry per the
 [React Bits MCP guide](https://reactbits.dev/get-started/mcp).
 

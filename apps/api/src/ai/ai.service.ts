@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
-import OpenAI from "openai";
+import OpenAI, { APIError } from "openai";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { SettingsService } from "../settings/settings.service";
@@ -67,6 +67,28 @@ export class AiService {
     };
   }
 
+  private formatProviderError(err: unknown): string {
+    const raw = err instanceof Error ? err.message : String(err);
+    const isCloudflareBlock =
+      (err instanceof APIError && err.status === 403) ||
+      /cloudflare|challenge-platform|Enable JavaScript and cookies/i.test(raw);
+
+    if (isCloudflareBlock) {
+      return (
+        "OpenAI blocked requests from this server (Cloudflare). Datacenter/VPS IPs often cannot reach api.openai.com directly. " +
+        "Use OpenRouter instead: Base URL https://openrouter.ai/api/v1, your OpenRouter API key, and model openai/gpt-4o-mini."
+      );
+    }
+    if (err instanceof APIError) {
+      if (err.status === 401) return "Invalid API key. Check your key in Settings → AI Integration.";
+      if (err.status === 429) return "AI rate limit exceeded. Wait a moment or switch provider/model.";
+      const brief = raw.length > 180 ? `${raw.slice(0, 180)}…` : raw;
+      return `AI provider error (${err.status}): ${brief}`;
+    }
+    const brief = raw.length > 220 ? `${raw.slice(0, 220)}…` : raw;
+    return brief;
+  }
+
   private async chat(system: string, user: string, json: boolean): Promise<string> {
     try {
       const { openai, model } = await this.client();
@@ -86,11 +108,9 @@ export class AiService {
       return content;
     } catch (err) {
       if (err instanceof BadRequestException) throw err;
-      const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`AI chat error: ${msg}`);
-      throw new BadRequestException(
-        `AI request failed: ${msg}. Check your API key, base URL, and model in Settings.`,
-      );
+      const message = this.formatProviderError(err);
+      this.logger.error(`AI chat error: ${message}`);
+      throw new BadRequestException(message);
     }
   }
 
