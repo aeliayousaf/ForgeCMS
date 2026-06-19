@@ -81,11 +81,22 @@ export default function DraftPreviewPage({ params }: { params: Promise<{ pageId:
     return <div className="flex min-h-screen items-center justify-center text-slate-400">Loading preview…</div>;
   }
 
+  const isPublished = page.status === "published";
+  const liveHref = page.slug ? `/${page.slug}` : "/";
+
   return (
     <>
       <div className="sticky top-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
-        Draft preview — visitors won&apos;t see this until you publish.
-        {page.status !== "published" && " This page is not published yet."}
+        {isPublished ? (
+          <>
+            Saved draft preview — click <strong>Publish</strong> in the editor to update the live site.{" "}
+            <a href={liveHref} className="font-semibold underline underline-offset-2">
+              View live site
+            </a>
+          </>
+        ) : (
+          <>Draft preview — visitors won&apos;t see this until you publish.</>
+        )}
       </div>
       <PublicPageRenderer
         siteName={siteName}

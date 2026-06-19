@@ -294,8 +294,9 @@ export function Builder({
     setStatus("Saving for preview…");
     try {
       await persistPage();
-      window.open(`/preview/${pageId}`, "_blank", "noopener,noreferrer");
-      setStatus("Preview opened");
+      const url = meta.status === "published" ? `/${meta.slug}` : `/preview/${pageId}`;
+      window.open(url, "_blank", "noopener,noreferrer");
+      setStatus(meta.status === "published" ? "Live preview opened" : "Draft preview opened");
       setTimeout(() => setStatus(""), 1500);
     } catch (err) {
       setStatus("");
@@ -382,7 +383,7 @@ export function Builder({
             disabled={saving}
             className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-50"
           >
-            Preview
+            {meta.status === "published" ? "View live" : "Preview"}
           </button>
           <button type="button" onClick={save} disabled={saving} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-50">
             <Save size={14} /> Save draft
