@@ -64,7 +64,7 @@ export class MediaService {
           .resize(400, 400, { fit: "inside", withoutEnlargement: true })
           .webp({ quality: 80 })
           .toBuffer();
-        const thumbRel = rel.replace(ext, "_thumb.webp");
+        const thumbRel = `${rel.slice(0, -ext.length)}_thumb.webp`;
         const thumbStored = await this.storage.put(thumb, thumbRel);
         thumbnailPath = thumbStored.path;
       } catch {

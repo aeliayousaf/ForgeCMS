@@ -80,7 +80,15 @@ export default function MediaPage() {
             <div key={m.id} className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white">
               {m.mimeType.startsWith("image/") ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.thumbnailUrl ?? m.url} alt={m.altText ?? m.originalName} className="h-28 w-full object-cover" />
+                <img
+                  src={m.thumbnailUrl ?? m.url}
+                  alt={m.altText ?? m.originalName}
+                  className="h-28 w-full object-cover"
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    if (m.url && img.src !== m.url) img.src = m.url;
+                  }}
+                />
               ) : (
                 <div className="flex h-28 items-center justify-center bg-slate-100 text-xs text-slate-500">{m.mimeType}</div>
               )}
