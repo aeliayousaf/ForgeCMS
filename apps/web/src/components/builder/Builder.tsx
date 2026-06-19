@@ -288,6 +288,24 @@ export function Builder({
     }
   }
 
+  async function openPreview() {
+    setSaving(true);
+    setSaveError(null);
+    setStatus("Saving for preview…");
+    try {
+      await persistPage();
+      window.open(`/preview/${pageId}`, "_blank", "noopener,noreferrer");
+      setStatus("Preview opened");
+      setTimeout(() => setStatus(""), 1500);
+    } catch (err) {
+      setStatus("");
+      const msg = err instanceof ApiError ? err.message : "Save failed — preview not opened";
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function publish() {
     setSaving(true);
     setSaveError(null);
@@ -358,9 +376,14 @@ export function Builder({
             </span>
           )}
           {status && !saveError && <span className="text-xs text-slate-500">{status}</span>}
-          <a href={`/${meta.slug}`} target="_blank" rel="noopener noreferrer" className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
+          <button
+            type="button"
+            onClick={openPreview}
+            disabled={saving}
+            className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+          >
             Preview
-          </a>
+          </button>
           <button type="button" onClick={save} disabled={saving} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-50">
             <Save size={14} /> Save draft
           </button>

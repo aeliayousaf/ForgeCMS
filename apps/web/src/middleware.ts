@@ -2,15 +2,20 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const INTERNAL = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
 
-async function isInstalled(): Promise<boolean> {
+type InstallState = "installed" | "not_installed" | "unknown";
+
+async function getInstallState(): Promise<InstallState> {
   try {
-    const res = await fetch(`${INTERNAL}/api/setup/status`, { cache: "no-store" });
-    if (!res.ok) return false;
+    const res = await fetch(`${INTERNAL}/api/setup/status`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return "unknown";
     const data = (await res.json()) as { installed: boolean };
-    return data.installed;
+    return data.installed ? "installed" : "not_installed";
   } catch {
-    // If the API is unreachable, fail open to the setup screen.
-    return false;
+    // Transient API/network errors must not send an existing site to the setup wizard.
+    return "unknown";
   }
 }
 
@@ -27,21 +32,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const installed = await isInstalled();
+  const installState = await getInstallState();
 
-  if (!installed) {
+  if (installState === "not_installed") {
     if (pathname.startsWith("/setup")) return NextResponse.next();
     return NextResponse.redirect(new URL("/setup", req.url));
   }
 
-  // Already installed: keep users out of the wizard.
-  if (pathname.startsWith("/setup")) {
+  if (installState === "installed" && pathname.startsWith("/setup")) {
     return NextResponse.redirect(new URL("/admin", req.url));
   }
 
-  // Gate the admin area on the presence of an access cookie. The API still
-  // enforces real authorization on every request.
-  if (pathname.startsWith("/admin")) {
+  // Gate the admin area and draft preview on the presence of an access cookie.
+  if (pathname.startsWith("/admin") || pathname.startsWith("/preview")) {
     const hasAccess = req.cookies.has("fc_access");
     if (!hasAccess) {
       const url = new URL("/login", req.url);
