@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
+import { api, apiUpload, ApiError } from "@/lib/api";
 import { PageHeader } from "@/components/AdminShell";
 
 interface MediaItem {
@@ -13,18 +13,11 @@ interface MediaItem {
   altText: string | null;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api";
-
-function getCookie(name: string): string | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return m ? decodeURIComponent(m[1]) : null;
-}
-
 export default function MediaPage() {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -39,18 +32,20 @@ export default function MediaPage() {
   async function upload(files: FileList | null) {
     if (!files?.length) return;
     setUploading(true);
-    for (const file of Array.from(files)) {
-      const fd = new FormData();
-      fd.append("file", file);
-      await fetch(`${API_BASE}/media/upload`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "x-csrf-token": getCookie("fc_csrf") ?? "" },
-        body: fd,
-      });
+    setError(null);
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        await apiUpload("/media/upload", fd);
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
     }
-    setUploading(false);
-    load();
   }
 
   async function remove(id: string) {
@@ -71,6 +66,11 @@ export default function MediaPage() {
       />
       <input ref={fileRef} type="file" multiple hidden onChange={(e) => upload(e.target.files)} />
       <div className="p-8">
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
         <div className="mb-4 flex gap-2">
           <input className="fc-input max-w-xs" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} />
           <button onClick={load} className="rounded-lg border border-slate-200 px-4 text-sm">Search</button>

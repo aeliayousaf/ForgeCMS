@@ -43,8 +43,12 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/admin", req.url));
   }
 
-  // Gate the admin area and draft preview on the presence of an access cookie.
-  if (pathname.startsWith("/admin") || pathname.startsWith("/preview")) {
+  // Gate the admin area, draft preview, and React Bits source API on the access cookie.
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/preview") ||
+    pathname.startsWith("/react-bits-source")
+  ) {
     const hasAccess = req.cookies.has("fc_access");
     if (!hasAccess) {
       const url = new URL("/login", req.url);

@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getReactBitsEntry } from "@/lib/react-bits/manifest";
 import type { ReactBitsPropField } from "@/lib/react-bits/prop-schema";
+import { buildReactBitsUsageSnippet } from "@/lib/react-bits/usage-snippet";
 import type { BlockNode } from "@forgecms/shared";
+
+type CodeTab = "usage" | "source" | "props";
 
 function PropFieldInput({
   field,
@@ -122,6 +125,72 @@ function PropFieldInput({
   );
 }
 
+function CodeBlock({
+  code,
+  path,
+  editable,
+  onChange,
+  onApply,
+  error,
+}: {
+  code: string;
+  path?: string;
+  editable?: boolean;
+  onChange?: (v: string) => void;
+  onApply?: () => void;
+  error?: string | null;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        {path ? <span className="truncate font-mono text-[10px] text-slate-400">{path}</span> : <span />}
+        <button
+          type="button"
+          onClick={copy}
+          className="shrink-0 rounded border border-slate-200 px-2 py-0.5 text-[10px] text-slate-600 hover:bg-slate-50"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      {editable ? (
+        <>
+          <textarea
+            className="fc-input max-h-64 min-h-[8rem] w-full resize-y font-mono text-xs"
+            value={code}
+            onChange={(e) => onChange?.(e.target.value)}
+          />
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          {onApply && (
+            <button
+              type="button"
+              onClick={onApply}
+              className="w-full rounded-lg border border-slate-200 py-1.5 text-xs hover:bg-slate-50"
+            >
+              Apply JSON
+            </button>
+          )}
+        </>
+      ) : (
+        <pre className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-slate-950 p-3 text-[11px] leading-relaxed text-slate-100">
+          <code>{code}</code>
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export function ReactBitsPropsPanel({
   block,
   onChange,
@@ -132,14 +201,53 @@ export function ReactBitsPropsPanel({
   const slug = String(block.props.slug ?? "");
   const entry = getReactBitsEntry(slug);
   const componentProps = (block.props.componentProps as Record<string, unknown>) ?? {};
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showCode, setShowCode] = useState(false);
+  const [codeTab, setCodeTab] = useState<CodeTab>("usage");
   const [jsonText, setJsonText] = useState(() => JSON.stringify(componentProps, null, 2));
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [sourceCode, setSourceCode] = useState<string | null>(null);
+  const [sourcePath, setSourcePath] = useState<string | null>(null);
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
 
   useEffect(() => {
     setJsonText(JSON.stringify(componentProps, null, 2));
     setJsonError(null);
   }, [slug, block.id, JSON.stringify(componentProps)]);
+
+  const loadSource = useCallback(async () => {
+    if (!slug) return;
+    setSourceLoading(true);
+    setSourceError(null);
+    try {
+      const res = await fetch(`/react-bits-source/${encodeURIComponent(slug)}`, { credentials: "include" });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Failed to load source (${res.status})`);
+      }
+      const data = (await res.json()) as { source: string; path: string };
+      setSourceCode(data.source);
+      setSourcePath(data.path);
+    } catch (err) {
+      setSourceCode(null);
+      setSourcePath(null);
+      setSourceError(err instanceof Error ? err.message : "Failed to load source");
+    } finally {
+      setSourceLoading(false);
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    setSourceCode(null);
+    setSourcePath(null);
+    setSourceError(null);
+  }, [slug]);
+
+  useEffect(() => {
+    if (showCode && codeTab === "source" && sourceCode === null && !sourceLoading && !sourceError) {
+      void loadSource();
+    }
+  }, [showCode, codeTab, sourceCode, sourceLoading, sourceError, loadSource]);
 
   if (!entry) {
     return (
@@ -150,6 +258,7 @@ export function ReactBitsPropsPanel({
   }
 
   const mergedProps = { ...entry.defaultProps, ...componentProps };
+  const usageSnippet = buildReactBitsUsageSnippet(entry, mergedProps);
 
   function updateComponentProps(next: Record<string, unknown>) {
     onChange({ ...block.props, componentProps: next });
@@ -215,34 +324,90 @@ export function ReactBitsPropsPanel({
           ))}
         </div>
       ) : (
-        <p className="text-xs text-slate-500">No visual settings detected — use Advanced JSON below.</p>
+        <p className="text-xs text-slate-500">No visual settings detected — edit props in the Code panel below.</p>
       )}
 
       <div className="border-t border-slate-100 pt-3">
         <button
           type="button"
           className="flex w-full items-center justify-between text-xs font-medium text-slate-500"
-          onClick={() => setShowAdvanced((v) => !v)}
+          onClick={() => setShowCode((v) => !v)}
         >
-          Advanced JSON
-          <span>{showAdvanced ? "▾" : "▸"}</span>
+          Code
+          <span>{showCode ? "▾" : "▸"}</span>
         </button>
-        {showAdvanced && (
+        {showCode && (
           <div className="mt-2 space-y-2">
-            <textarea
-              className="fc-input font-mono text-xs"
-              rows={8}
-              value={jsonText}
-              onChange={(e) => setJsonText(e.target.value)}
-            />
-            {jsonError && <p className="text-xs text-red-600">{jsonError}</p>}
-            <button
-              type="button"
-              onClick={applyJson}
-              className="w-full rounded-lg border border-slate-200 py-1.5 text-xs hover:bg-slate-50"
-            >
-              Apply JSON
-            </button>
+            <div className="flex gap-1 rounded-lg border border-slate-200 p-0.5">
+              {(
+                [
+                  ["usage", "Usage"],
+                  ["source", "Component"],
+                  ["props", "Props JSON"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setCodeTab(id)}
+                  className={`flex-1 rounded-md px-2 py-1 text-[10px] font-medium ${
+                    codeTab === id ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {codeTab === "usage" && (
+              <>
+                <p className="text-[10px] text-slate-500">
+                  Copy this snippet to use the component with your current settings in a custom React file.
+                </p>
+                <CodeBlock code={usageSnippet} />
+              </>
+            )}
+
+            {codeTab === "source" && (
+              <>
+                <p className="text-[10px] text-slate-500">
+                  Full component source from your project. Edit the file in{" "}
+                  <code className="rounded bg-slate-100 px-1">apps/web/src/components/</code> and run{" "}
+                  <code className="rounded bg-slate-100 px-1">pnpm react-bits:sync</code> after changes.
+                </p>
+                {sourceLoading && <p className="text-xs text-slate-500">Loading source…</p>}
+                {sourceError && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-red-600">{sourceError}</p>
+                    <button
+                      type="button"
+                      onClick={() => void loadSource()}
+                      className="text-xs text-indigo-600 hover:underline"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+                {sourceCode && (
+                  <CodeBlock code={sourceCode} path={sourcePath ?? entry.sourceFile} />
+                )}
+              </>
+            )}
+
+            {codeTab === "props" && (
+              <>
+                <p className="text-[10px] text-slate-500">
+                  Per-block props stored in the page JSON. Use this for fine-grained overrides.
+                </p>
+                <CodeBlock
+                  code={jsonText}
+                  editable
+                  onChange={setJsonText}
+                  onApply={applyJson}
+                  error={jsonError}
+                />
+              </>
+            )}
           </div>
         )}
       </div>

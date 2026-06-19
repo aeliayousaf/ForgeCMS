@@ -99,6 +99,7 @@ function generateManifest(entries) {
     "  dependencies: string[];",
     "  defaultProps: Record<string, unknown>;",
     "  propSchema: ReactBitsPropField[];",
+    "  sourceFile: string;",
     "  load: () => Promise<{ default: ComponentType<Record<string, unknown>> }>;",
     "}",
     "",
@@ -115,6 +116,7 @@ function generateManifest(entries) {
     lines.push(`    dependencies: ${JSON.stringify(e.dependencies)},`);
     lines.push(`    defaultProps: ${JSON.stringify(e.defaultProps)},`);
     lines.push(`    propSchema: ${JSON.stringify(e.propSchema)},`);
+    lines.push(`    sourceFile: ${JSON.stringify(e.sourceFile)},`);
     lines.push(`    load: () => import(${JSON.stringify(e.importPath)}) as unknown as Promise<{ default: ComponentType<Record<string, unknown>> }>,`);
     lines.push("  },");
   }
@@ -171,6 +173,7 @@ async function main() {
       dependencies: regItem.dependencies ?? [],
       defaultProps: inferDefaultProps(regItem, propSchema),
       propSchema,
+      sourceFile: `${title}.tsx`,
       importPath,
     });
   }

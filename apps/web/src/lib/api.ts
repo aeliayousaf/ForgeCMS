@@ -109,3 +109,47 @@ export async function api<T = unknown>(
     return text as T;
   }
 }
+
+/** Multipart upload (e.g. media). Uses same-origin /api and detects redirect-to-GET failures. */
+export async function apiUpload<T = unknown>(
+  path: string,
+  formData: FormData,
+  options: { signal?: AbortSignal } = {},
+): Promise<T> {
+  const csrf = getCookie("fc_csrf");
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      credentials: "include",
+      redirect: "manual",
+      signal: options.signal ?? requestTimeout(120_000),
+      headers: csrf ? { "x-csrf-token": csrf } : {},
+      body: formData,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new ApiError(0, "Upload timed out — check that the API is running");
+    }
+    throw new ApiError(0, "Network error — could not reach the server");
+  }
+
+  if (res.type === "opaqueredirect" || res.status === 301 || res.status === 302 || res.status === 303) {
+    throw new ApiError(
+      res.status,
+      "Upload was redirected and may have failed — open the admin over HTTPS (https://…) and try again",
+    );
+  }
+
+  const text = await res.text();
+  if (!res.ok) {
+    const { message, errors } = parseApiErrorBody(res.status, text);
+    throw new ApiError(res.status, message, errors);
+  }
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
+}
