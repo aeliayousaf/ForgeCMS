@@ -43,6 +43,36 @@ function FieldInput({
   if (field.type === "boolean") {
     return <input type="checkbox" checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} />;
   }
+  if (field.type === "color") {
+    const str = String(value ?? "");
+    const pickerValue = /^#[0-9a-fA-F]{6}$/.test(str) ? str : "#4f46e5";
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          className="h-9 w-10 shrink-0 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+          value={pickerValue}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <input
+          className="fc-input min-w-0 flex-1"
+          value={str}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={field.placeholder ?? "Theme default"}
+        />
+        {str ? (
+          <button
+            type="button"
+            className="shrink-0 text-xs text-slate-400 hover:text-slate-600"
+            onClick={() => onChange("")}
+            title="Reset to theme default"
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+    );
+  }
   if (field.type === "number") {
     return (
       <input

@@ -136,8 +136,20 @@ const buttonSchema = z.object({
   label: z.string(),
   href: z.string().default("#"),
   variant: z.enum(["primary", "outline", "ghost"]).default("primary"),
+  size: z.enum(["sm", "md", "lg"]).default("md"),
+  backgroundColor: z.string().default(""),
+  textColor: z.string().default(""),
+  borderColor: z.string().default(""),
 });
 type ButtonProps = z.infer<typeof buttonSchema>;
+
+function buttonInlineStyle(props: ButtonProps): Record<string, string> {
+  const style: Record<string, string> = {};
+  if (props.backgroundColor) style.background = props.backgroundColor;
+  if (props.textColor) style.color = props.textColor;
+  if (props.borderColor) style.borderColor = props.borderColor;
+  return style;
+}
 
 export const buttonBlock: BlockDefinition<ButtonProps> = {
   type: "button",
@@ -145,7 +157,15 @@ export const buttonBlock: BlockDefinition<ButtonProps> = {
   category: "content",
   icon: "MousePointerClick",
   schema: buttonSchema,
-  defaultProps: { label: "Click me", href: "#", variant: "primary" },
+  defaultProps: {
+    label: "Click me",
+    href: "#",
+    variant: "primary",
+    size: "md",
+    backgroundColor: "",
+    textColor: "",
+    borderColor: "",
+  },
   editorFields: [
     { key: "label", label: "Label", type: "text" },
     { key: "href", label: "Link", type: "text" },
@@ -154,15 +174,32 @@ export const buttonBlock: BlockDefinition<ButtonProps> = {
       label: "Style",
       type: "select",
       options: [
-        { label: "Primary", value: "primary" },
+        { label: "Primary (filled)", value: "primary" },
         { label: "Outline", value: "outline" },
-        { label: "Ghost", value: "ghost" },
+        { label: "Ghost (text only)", value: "ghost" },
       ],
     },
+    {
+      key: "size",
+      label: "Size",
+      type: "select",
+      options: [
+        { label: "Small", value: "sm" },
+        { label: "Medium", value: "md" },
+        { label: "Large", value: "lg" },
+      ],
+    },
+    { key: "backgroundColor", label: "Background colour", type: "color", placeholder: "Theme default" },
+    { key: "textColor", label: "Text colour", type: "color", placeholder: "Theme default" },
+    { key: "borderColor", label: "Border colour", type: "color", placeholder: "Theme default" },
   ],
   component: ({ props, className, style }) => (
     <div style={{ padding: "1rem 1.5rem", textAlign: "center", ...style }} className={className}>
-      <a href={props.href} className={`fc-btn fc-btn-${props.variant}`}>
+      <a
+        href={props.href}
+        className={`fc-btn fc-btn-${props.variant} fc-btn-${props.size}`}
+        style={buttonInlineStyle(props)}
+      >
         {props.label}
       </a>
     </div>
