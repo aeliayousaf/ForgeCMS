@@ -5,6 +5,7 @@ import { getBlock, type EditorField } from "@forgecms/blocks";
 import type { BlockNode, ResponsiveStyles } from "@forgecms/shared";
 import { StylePanel, ColumnWidthPanel, ColumnLayoutPanel } from "./StylePanel";
 import { BackgroundImagePanel, isLayoutBackgroundBlock } from "./BackgroundImagePanel";
+import { ReactBitsPropsPanel } from "./ReactBitsPropsPanel";
 import type { BuilderViewport } from "./viewport";
 import { findNode, getParentId } from "./tree";
 
@@ -154,17 +155,23 @@ export function PropsPanel({
 
       {tab === "content" && (
         <div className="space-y-4 p-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{def.label}</h3>
-          {def.editorFields.map((field) => (
-            <label key={field.key} className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-500">{field.label}</span>
-              <FieldInput
-                field={field}
-                value={block.props[field.key]}
-                onChange={(v) => onChange({ ...block.props, [field.key]: v })}
-              />
-            </label>
-          ))}
+          {block.type === "reactBits" ? (
+            <ReactBitsPropsPanel block={block} onChange={onChange} />
+          ) : (
+            <>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{def.label}</h3>
+              {def.editorFields.map((field) => (
+                <label key={field.key} className="block">
+                  <span className="mb-1 block text-xs font-medium text-slate-500">{field.label}</span>
+                  <FieldInput
+                    field={field}
+                    value={block.props[field.key]}
+                    onChange={(v) => onChange({ ...block.props, [field.key]: v })}
+                  />
+                </label>
+              ))}
+            </>
+          )}
         </div>
       )}
 

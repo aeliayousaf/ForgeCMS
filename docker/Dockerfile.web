@@ -9,9 +9,9 @@ COPY packages ./packages
 COPY apps/web ./apps/web
 
 RUN pnpm install --no-frozen-lockfile
-# Prisma client types are needed for the database package to typecheck.
 RUN pnpm --filter @forgecms/database generate
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm --filter @forgecms/web react-bits:manifest
 RUN pnpm turbo build --filter=@forgecms/web
 
 # ---- Runtime stage (Next.js standalone) ----

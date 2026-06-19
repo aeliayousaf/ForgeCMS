@@ -21,6 +21,7 @@ import { BackupsModule } from "./backups/backups.module";
 import { PublicModule } from "./public/public.module";
 import { FormsModule } from "./forms/forms.module";
 import { DashboardModule } from "./dashboard/dashboard.module";
+import { ReactBitsModule } from "./integrations/react-bits/react-bits.module";
 
 import { JwtAuthGuard } from "./auth/jwt-auth.guard";
 import { CsrfGuard } from "./auth/csrf.guard";
@@ -47,6 +48,7 @@ import { CsrfGuard } from "./auth/csrf.guard";
     PublicModule,
     FormsModule,
     DashboardModule,
+    ReactBitsModule,
   ],
   providers: [
     // Order matters: throttle, then authenticate, then CSRF-check.

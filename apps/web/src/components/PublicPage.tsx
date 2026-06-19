@@ -1,5 +1,6 @@
-import { BlockRenderer, SiteLayout, type ThemeConfig } from "@forgecms/blocks";
+import type { ThemeConfig } from "@forgecms/blocks";
 import type { PageDocument } from "@forgecms/shared";
+import { PublicPageRenderer } from "./PublicPageRenderer";
 
 export interface PublicPayload {
   page: {
@@ -32,8 +33,11 @@ const fallbackTheme: ThemeConfig = {
 export function PublicPage({ payload }: { payload: PublicPayload }) {
   const config = payload.theme?.config ?? fallbackTheme;
   return (
-    <SiteLayout siteName={payload.site.siteName} config={config} menu={payload.menu}>
-      <BlockRenderer document={payload.page.document} />
-    </SiteLayout>
+    <PublicPageRenderer
+      siteName={payload.site.siteName}
+      config={config}
+      menu={payload.menu}
+      document={payload.page.document}
+    />
   );
 }

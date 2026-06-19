@@ -73,12 +73,27 @@ pnpm dev   # runs the API (:4000) and web (:3000) together
 Visit `http://localhost:3000` and complete the setup wizard. In dev, the web app
 proxies `/api` to `http://localhost:4000` automatically.
 
+## React Bits integration
+
+The page builder includes a searchable **React Bits** panel ([reactbits.dev](https://reactbits.dev))
+with ~47 pre-bundled animated components (backgrounds, text effects, interactive widgets).
+
+**In the builder:** open the left sidebar → **React Bits** → search → click or drag onto the canvas.
+
+**Extend the catalog (developers):**
+
+1. Enable the shadcn MCP server in Cursor (`.cursor/mcp.json` is included).
+2. Add a component slug to `packages/shared/react-bits.catalog.json` (use `*-TS-TW` variants).
+3. Run `pnpm --filter @forgecms/web react-bits:sync` to install via shadcn and regenerate the manifest.
+4. Rebuild the web app / Docker `web` image.
+
+`apps/web/components.json` registers the `@react-bits` registry per the
+[React Bits MCP guide](https://reactbits.dev/get-started/mcp).
+
 ## Features
 
 - Installer wizard, no config editing required
-- Visual builder with 16 blocks: Hero, Text, Heading, Image, Gallery, Video,
-  Button, Testimonials, FAQ, Pricing, Feature Grid, Contact Form, Newsletter,
-  Blog Feed, Call To Action, Custom HTML
+- Visual builder with layout blocks (section/column), 16+ widgets, and React Bits components
 - Page versions, drafts, publish/unpublish, duplicate, save-as-component
 - Theme engine with 10 starter themes; switch themes without losing content
 - Media library with upload validation, magic-byte checks, and thumbnails

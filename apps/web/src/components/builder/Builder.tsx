@@ -38,6 +38,9 @@ import {
 import { columnWidthPropKey } from "./viewport";
 import { VIEWPORT_WIDTHS, type BuilderViewport } from "./viewport";
 import "@forgecms/blocks/fc-layout.css";
+import "@/lib/register-blocks";
+import { getReactBitsEntry } from "@/lib/react-bits/manifest";
+import { ReactBitsPanel } from "./ReactBitsPanel";
 
 let counter = 0;
 const newId = () => `b-${Date.now().toString(36)}-${counter++}`;
@@ -79,7 +82,7 @@ export function Builder({
   const insertTarget = resolveInsertTarget(blocks, selectedId);
 
   const layoutBlocks = getAllBlocks().filter((b) => isLayoutType(b.type));
-  const contentBlocks = getAllBlocks().filter((b) => !isLayoutType(b.type));
+  const contentBlocks = getAllBlocks().filter((b) => !isLayoutType(b.type) && b.type !== "reactBits");
 
   useEffect(() => {
     api<SavedComponent[]>("/components")
@@ -138,6 +141,23 @@ export function Builder({
     };
   }
 
+  function createReactBitsNode(slug: string): BlockNode {
+    const entry = getReactBitsEntry(slug);
+    return {
+      id: newId(),
+      type: "reactBits",
+      props: {
+        slug,
+        componentProps: structuredClone(entry?.defaultProps ?? {}),
+      },
+      ...(entry?.supportsChildren ? { children: [] } : {}),
+    };
+  }
+
+  function insertReactBits(slug: string) {
+    insertNodes([createReactBitsNode(slug)]);
+  }
+
   function insertAtDropTarget(prev: BlockNode[], nodes: BlockNode[], overId: string, overData?: { parentId?: string | null; kind?: string }) {
     const target = resolveDropTarget(prev, overId, overData);
     if (!target) {
@@ -176,6 +196,8 @@ export function Builder({
     const parsed = parsePaletteId(id);
     if (parsed?.kind === "widget") {
       setDragLabel(getBlock(parsed.type)?.label ?? parsed.type);
+    } else if (parsed?.kind === "reactbits") {
+      setDragLabel(getReactBitsEntry(parsed.slug)?.title ?? parsed.slug);
     } else if (parsed?.kind === "component") {
       setDragLabel(savedComponents.find((c) => c.id === parsed.componentId)?.name ?? "Component");
     } else {
@@ -202,6 +224,8 @@ export function Builder({
         let nodes: BlockNode[] = [];
         if (parsed.kind === "widget") {
           nodes = [createBlockNode(parsed.type)];
+        } else if (parsed.kind === "reactbits") {
+          nodes = [createReactBitsNode(parsed.slug)];
         } else {
           const comp = savedComponents.find((c) => c.id === parsed.componentId);
           if (!comp || !Array.isArray(comp.blocks)) return prev;
@@ -410,6 +434,8 @@ export function Builder({
               />
             ))}
           </div>
+
+          <ReactBitsPanel onInsert={insertReactBits} />
         </div>
 
         <div className="flex-1 overflow-y-auto bg-slate-300 p-6">

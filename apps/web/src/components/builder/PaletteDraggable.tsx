@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import type { BlockType } from "@forgecms/shared";
 
@@ -9,12 +10,14 @@ export function PaletteDraggable({
   data,
   onClick,
   className,
+  children,
 }: {
   id: string;
   label: string;
   data: Record<string, unknown>;
   onClick?: () => void;
   className?: string;
+  children?: ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, data });
 
@@ -30,7 +33,7 @@ export function PaletteDraggable({
       } ${className ?? ""}`}
       title={`Drag or click to add ${label}`}
     >
-      {label}
+      {children ?? label}
     </button>
   );
 }
@@ -39,12 +42,25 @@ export function paletteWidgetId(type: BlockType) {
   return `palette-widget-${type}`;
 }
 
-export function parsePaletteId(id: string): { kind: "widget"; type: BlockType } | { kind: "component"; componentId: string } | null {
+export function paletteReactBitsId(slug: string) {
+  return `palette-reactbits-${slug}`;
+}
+
+export function parsePaletteId(
+  id: string,
+):
+  | { kind: "widget"; type: BlockType }
+  | { kind: "component"; componentId: string }
+  | { kind: "reactbits"; slug: string }
+  | null {
   if (id.startsWith("palette-widget-")) {
     return { kind: "widget", type: id.slice("palette-widget-".length) as BlockType };
   }
   if (id.startsWith("palette-component-")) {
     return { kind: "component", componentId: id.slice("palette-component-".length) };
+  }
+  if (id.startsWith("palette-reactbits-")) {
+    return { kind: "reactbits", slug: id.slice("palette-reactbits-".length) };
   }
   return null;
 }

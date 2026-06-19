@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import { createElement } from "react";
 import { z } from "zod";
 import type { BlockDefinition } from "../types.js";
 
@@ -99,14 +99,13 @@ export const headingBlock: BlockDefinition<HeadingProps> = {
   ],
   component: ({ props, className, style }) => {
     const level = Math.min(Math.max(props.level, 1), 6);
-    const Tag = `h${level}` as keyof JSX.IntrinsicElements;
-    return (
-      <Tag
-        className={className}
-        style={{ fontWeight: 700, padding: "0.5rem 1.5rem", maxWidth: 960, margin: "0 auto", ...style }}
-      >
-        {props.text}
-      </Tag>
+    return createElement(
+      `h${level}`,
+      {
+        className,
+        style: { fontWeight: 700, padding: "0.5rem 1.5rem", maxWidth: 960, margin: "0 auto", ...style },
+      },
+      props.text,
     );
   },
 };

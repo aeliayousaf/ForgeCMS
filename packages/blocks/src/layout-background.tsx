@@ -20,8 +20,9 @@ export function LayoutBackground({
   const hasImage = Boolean(bg.backgroundImage);
 
   if (!hasImage) {
+    const mergedClass = [className, contentClassName].filter(Boolean).join(" ") || undefined;
     return (
-      <div className={className} style={style}>
+      <div className={mergedClass} style={{ ...style, ...contentStyle }}>
         {children}
       </div>
     );

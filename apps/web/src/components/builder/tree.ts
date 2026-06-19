@@ -129,6 +129,7 @@ export function resolveInsertTarget(
   if (node.type === "column") return { parentId: node.id, hint: "inside selected column" };
   if (node.type === "container") return { parentId: node.id, hint: "inside container (add a column first for widgets)" };
   if (node.type === "section") return { parentId: node.id, hint: "inside section" };
+  if (node.type === "reactBits") return { parentId: node.id, hint: "inside React Bits component" };
 
   // Content block selected — insert as sibling in same parent
   if (found.path.length > 1) {
@@ -140,6 +141,7 @@ export function resolveInsertTarget(
 }
 
 export function canAcceptChild(parentType: BlockType, childType: BlockType): boolean {
+  if (parentType === "reactBits") return !isLayoutType(childType);
   if (parentType === "column") return !isLayoutType(childType);
   if (parentType === "container") return childType === "column";
   if (parentType === "section") return childType === "container" || childType === "section" || !isLayoutType(childType);
@@ -234,7 +236,7 @@ export function resolveDropTarget(
   const over = findNode(blocks, overId);
   if (!over) return null;
 
-  if (over.node.type === "column" || over.node.type === "section" || over.node.type === "container") {
+  if (over.node.type === "column" || over.node.type === "section" || over.node.type === "container" || over.node.type === "reactBits") {
     return { parentId: overId, index: over.node.children?.length ?? 0 };
   }
 

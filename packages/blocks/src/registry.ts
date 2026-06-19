@@ -11,6 +11,7 @@ import {
 } from "./components/sections.js";
 import { contactFormBlock, newsletterFormBlock } from "./components/forms.js";
 import { customHtmlBlock } from "./components/advanced.js";
+import { reactBitsBlock } from "./components/react-bits.js";
 import { sectionBlock, containerBlock, columnBlock } from "./components/layout.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,6 +35,7 @@ const definitions: BlockDefinition<any>[] = [
   blogFeedBlock,
   ctaBlock,
   customHtmlBlock,
+  reactBitsBlock,
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,7 +43,8 @@ const registry = new Map<BlockType, BlockDefinition<any>>();
 for (const def of definitions) registry.set(def.type, def);
 
 // Future plugin hook: allow runtime registration of new blocks.
-export function registerBlock(def: BlockDefinition): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function registerBlock(def: BlockDefinition<any>): void {
   registry.set(def.type, def);
 }
 

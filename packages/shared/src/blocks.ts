@@ -19,6 +19,7 @@ export const BLOCK_TYPES = [
   "newsletterForm",
   "blogFeed",
   "cta",
+  "reactBits",
   "customHtml",
 ] as const;
 

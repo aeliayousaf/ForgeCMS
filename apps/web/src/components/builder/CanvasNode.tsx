@@ -6,6 +6,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2, Copy } from "lucide-react";
 import { BlockRenderer, getBlock, LayoutBackground } from "@forgecms/blocks";
+import { ReactBitsRenderer } from "@/components/react-bits/ReactBitsRenderer";
+import { getReactBitsEntry } from "@/lib/react-bits/manifest";
 import type { BlockNode } from "@forgecms/shared";
 import { isLayoutType, resizeColumns } from "./tree";
 import { columnWidthPropKey, getColumnWidthPercent, type BuilderViewport } from "./viewport";
@@ -213,6 +215,7 @@ function SortableCanvasBlock({
   onDelete,
   onDuplicate,
   renderChildren,
+  previewContent,
 }: {
   node: BlockNode;
   selected: boolean;
@@ -220,6 +223,7 @@ function SortableCanvasBlock({
   onDelete: () => void;
   onDuplicate: () => void;
   renderChildren?: (node: BlockNode) => React.ReactNode;
+  previewContent?: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: node.id,
@@ -249,7 +253,11 @@ function SortableCanvasBlock({
         }`}
       >
         <GripVertical size={14} />
-        <span className="text-[10px] font-medium uppercase tracking-wide">{def?.label ?? node.type}</span>
+        <span className="text-[10px] font-medium uppercase tracking-wide">
+          {node.type === "reactBits"
+            ? (getReactBitsEntry(String(node.props.slug ?? ""))?.title ?? "React Bits")
+            : (def?.label ?? node.type)}
+        </span>
       </div>
       <div className={`absolute right-2 top-8 z-30 flex gap-1 ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
         <button type="button" onClick={(e) => { e.stopPropagation(); onDuplicate(); }} className="rounded bg-slate-800 p-1 text-white shadow">
@@ -262,6 +270,8 @@ function SortableCanvasBlock({
 
       {isLayout && renderChildren ? (
         <div className="pt-7">{renderChildren(node)}</div>
+      ) : previewContent ? (
+        <div className="pt-7">{previewContent}</div>
       ) : (
         <div className="pointer-events-none pt-7">
           {def ? <BlockRenderer document={{ version: 1, blocks: [node] }} /> : <div className="p-4 text-red-500">Unknown: {node.type}</div>}
@@ -456,6 +466,51 @@ export function CanvasNode({
 
     return null;
   };
+
+  if (node.type === "reactBits") {
+    const slug = String(node.props.slug ?? "");
+    const entry = getReactBitsEntry(slug);
+    const childNodes = node.children ?? [];
+    const componentProps = (node.props.componentProps as Record<string, unknown>) ?? {};
+
+    return (
+      <SortableCanvasBlock
+        node={node}
+        selected={selected}
+        onSelect={() => onSelect(node.id)}
+        onDelete={() => onDelete(node.id)}
+        onDuplicate={() => onDuplicate(node.id)}
+        previewContent={
+          <ReactBitsRenderer slug={slug} componentProps={componentProps}>
+            {entry?.supportsChildren ? (
+              childNodes.length === 0 ? (
+                <DropZone id={`drop-${node.id}`} parentId={node.id} label="Drop widgets inside" fill />
+              ) : (
+                <>
+                  <InsertSlot beforeId={node.id} />
+                  {childNodes.map((child) => (
+                    <div key={child.id}>
+                      <CanvasNode
+                        node={child}
+                        selectedId={selectedId}
+                        viewport={viewport}
+                        onSelect={onSelect}
+                        onDelete={onDelete}
+                        onDuplicate={onDuplicate}
+                        setBlocks={setBlocks}
+                      />
+                      <InsertSlot beforeId={child.id} />
+                    </div>
+                  ))}
+                  <DropZone id={`drop-end-${node.id}`} parentId={node.id} compact label="Drop here" />
+                </>
+              )
+            ) : null}
+          </ReactBitsRenderer>
+        }
+      />
+    );
+  }
 
   return (
     <SortableCanvasBlock
