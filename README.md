@@ -100,7 +100,7 @@ One-shot refresh of all components: `pnpm --filter @forgecms/web react-bits:full
 - Page versions, drafts, publish/unpublish, duplicate, save-as-component
 - Theme engine with 10 starter themes; switch themes without losing content
 - Media library with upload validation, magic-byte checks, and thumbnails
-- AI Assistant: generate content and a full multi-page website from a prompt
+- AI Assistant: build a full site from one prompt (pages, menu, theme) or generate copy
 - Role-based access control (admin/editor/author/viewer)
 - Backups: manual and scheduled database + file backups with restore
 - SEO: per-page metadata, `sitemap.xml`, `robots.txt`

@@ -1,35 +1,44 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { PageHeader } from "@/components/AdminShell";
 
+interface BuildSiteResult {
+  siteName: string;
+  siteDescription: string;
+  themeKey: string | null;
+  menu: { label: string; url: string }[];
+  pages: { id: string; title: string; slug: string; published: boolean }[];
+  published: boolean;
+}
+
 export default function AiPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"website" | "content">("website");
+  const [tab, setTab] = useState<"build" | "content">("build");
 
-  // Create Website
-  const [biz, setBiz] = useState({ businessName: "", industry: "", services: "", audience: "", style: "Modern and professional" });
+  const [prompt, setPrompt] = useState("");
+  const [publish, setPublish] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<BuildSiteResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Content generation
-  const [prompt, setPrompt] = useState("");
+  const [contentPrompt, setContentPrompt] = useState("");
   const [kind, setKind] = useState("rewrite");
   const [output, setOutput] = useState("");
 
-  async function createWebsite() {
+  async function buildSite() {
     setBusy(true);
     setError(null);
     setResult(null);
     try {
-      const res = await api<{ pages: { id: string; title: string }[] }>("/ai/create-website", {
+      const res = await api<BuildSiteResult>("/ai/build-site", {
         method: "POST",
-        json: biz,
+        json: { prompt, publish },
       });
-      setResult(`Created ${res.pages.length} draft pages: ${res.pages.map((p) => p.title).join(", ")}`);
+      setResult(res);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Generation failed");
     } finally {
@@ -42,7 +51,7 @@ export default function AiPage() {
     setError(null);
     setOutput("");
     try {
-      const res = await api<{ text?: string }>("/ai/generate", { method: "POST", json: { kind, prompt } });
+      const res = await api<{ text?: string }>("/ai/generate", { method: "POST", json: { kind, prompt: contentPrompt } });
       setOutput(res.text ?? "");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Generation failed");
@@ -53,32 +62,82 @@ export default function AiPage() {
 
   return (
     <div>
-      <PageHeader title="AI Assistant" subtitle="Generate content and entire websites" />
+      <PageHeader title="AI Assistant" subtitle="Describe your business — get a full site with pages, menu, and theme" />
       <div className="max-w-3xl p-8">
         <div className="mb-6 flex gap-2">
-          <button onClick={() => setTab("website")} className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === "website" ? "bg-indigo-600 text-white" : "bg-white border border-slate-200"}`}>
-            Create Website
+          <button
+            onClick={() => setTab("build")}
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === "build" ? "bg-indigo-600 text-white" : "bg-white border border-slate-200"}`}
+          >
+            Build Website
           </button>
-          <button onClick={() => setTab("content")} className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === "content" ? "bg-indigo-600 text-white" : "bg-white border border-slate-200"}`}>
+          <button
+            onClick={() => setTab("content")}
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${tab === "content" ? "bg-indigo-600 text-white" : "bg-white border border-slate-200"}`}
+          >
             Generate Content
           </button>
         </div>
 
         {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-        {tab === "website" ? (
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-5">
-            <input className="fc-input" placeholder="Business name" value={biz.businessName} onChange={(e) => setBiz({ ...biz, businessName: e.target.value })} />
-            <input className="fc-input" placeholder="Industry" value={biz.industry} onChange={(e) => setBiz({ ...biz, industry: e.target.value })} />
-            <textarea className="fc-input" placeholder="Services (comma separated)" value={biz.services} onChange={(e) => setBiz({ ...biz, services: e.target.value })} />
-            <input className="fc-input" placeholder="Target audience" value={biz.audience} onChange={(e) => setBiz({ ...biz, audience: e.target.value })} />
-            <input className="fc-input" placeholder="Preferred style" value={biz.style} onChange={(e) => setBiz({ ...biz, style: e.target.value })} />
-            <button onClick={createWebsite} disabled={busy} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">
-              {busy ? "Generating..." : "Generate website"}
+        {tab === "build" ? (
+          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Describe your business</label>
+              <p className="mb-2 text-xs text-slate-500">
+                Include what you do, who you serve, your tone, and any pages you want. The AI will generate page content,
+                navigation menu, site name, and pick a theme. Header and footer are added automatically.
+              </p>
+              <textarea
+                className="fc-input"
+                rows={8}
+                placeholder="Example: I run a family-owned plumbing company in Austin called QuickFix Plumbing. We offer 24/7 emergency repairs, drain cleaning, and water heater installation. Our tone is friendly and trustworthy. We need Home, Services, About, and Contact pages."
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
+              Publish pages immediately (otherwise saved as drafts)
+            </label>
+
+            <button
+              onClick={buildSite}
+              disabled={busy || prompt.trim().length < 20}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {busy ? "Building your site…" : "Build website"}
             </button>
+
             {result && (
-              <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-                {result} <button className="ml-2 underline" onClick={() => router.push("/admin/pages")}>View pages</button>
+              <div className="space-y-3 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-900">
+                <p className="font-semibold">Site created for {result.siteName}</p>
+                <ul className="list-inside list-disc space-y-1 text-green-800">
+                  <li>
+                    {result.pages.length} page{result.pages.length === 1 ? "" : "s"}:{" "}
+                    {result.pages.map((p) => p.title).join(", ")}
+                    {result.published ? " (published)" : " (drafts)"}
+                  </li>
+                  <li>Theme: {result.themeKey ?? "unchanged"}</li>
+                  <li>Menu: {result.menu.map((m) => m.label).join(" · ")}</li>
+                </ul>
+                <div className="flex flex-wrap gap-3 pt-1">
+                  <button type="button" className="font-medium text-indigo-700 underline" onClick={() => router.push("/admin/pages")}>
+                    Edit pages
+                  </button>
+                  {result.published && (
+                    <Link href="/" target="_blank" className="font-medium text-indigo-700 underline">
+                      View live site
+                    </Link>
+                  )}
+                  {!result.published && result.pages[0] && (
+                    <Link href={`/admin/pages/${result.pages[0].id}/edit`} className="font-medium text-indigo-700 underline">
+                      Open in builder
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -92,7 +151,13 @@ export default function AiPage() {
               <option value="imagePrompt">Image prompt</option>
               <option value="layout">Suggest layout</option>
             </select>
-            <textarea className="fc-input" rows={4} placeholder="Describe what you need..." value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+            <textarea
+              className="fc-input"
+              rows={4}
+              placeholder="Describe what you need..."
+              value={contentPrompt}
+              onChange={(e) => setContentPrompt(e.target.value)}
+            />
             <button onClick={generate} disabled={busy} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">
               {busy ? "Generating..." : "Generate"}
             </button>

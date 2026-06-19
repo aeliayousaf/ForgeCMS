@@ -1,0 +1,40 @@
+Hostinger vps hosting for ForgeCMS
+
+password: NYOt;@3)7-1XShX6
+
+ssh root@2.25.211.198
+
+Random JWT strings:
+JWT_ACCESS_SECRET - 8446902191
+JWT_REFRESH_SECRET - 8223030667
+
+32 byte HEX key: F103248F51C4D2B12FF73029C09A86CB
+
+
+docker compose up -d --build
+
+Check it’s running:
+
+docker compose ps
+
+certbot certonly --standalone -d getforgecms.com -d www.getforgecms.com
+
+database password: NYOt;3)7-1XShX6
+
+
+build latest after commit to git 
+
+git fetch origin && git reset --hard origin/main 
+docker compose build --no-cache web api
+docker compose up -d web api
+
+or
+
+git pull origin main
+docker compose build --no-cache web
+docker compose up -d web
+
+to check if its latest pull from git:
+git log -1 --oneline
+
+https://www.dandh.ca/v4/view?pageReq=focusedlanding&focus=OPA|1&int_cia=NV-SHP&utm_campaign=opp-GoBigAl

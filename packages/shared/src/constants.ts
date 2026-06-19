@@ -22,6 +22,22 @@ export type PageStatus = (typeof PAGE_STATUS)[keyof typeof PAGE_STATUS];
 export const DEFAULT_ROLES = ["admin", "editor", "author", "viewer"] as const;
 export type RoleName = (typeof DEFAULT_ROLES)[number];
 
+/** Built-in theme keys (see packages/database/prisma/themes.ts). */
+export const THEME_KEYS = [
+  "business",
+  "agency",
+  "saas",
+  "portfolio",
+  "restaurant",
+  "education",
+  "medical",
+  "real-estate",
+  "ecommerce",
+  "landing",
+] as const;
+
+export type ThemeKey = (typeof THEME_KEYS)[number];
+
 export const ALLOWED_IMAGE_MIME = [
   "image/jpeg",
   "image/png",

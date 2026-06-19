@@ -83,6 +83,11 @@ export const aiCreateWebsiteSchema = z.object({
   style: z.string().min(1).max(160),
 });
 
+export const aiBuildSiteSchema = z.object({
+  prompt: z.string().min(20, "Describe your business in at least a few words").max(4000),
+  publish: z.boolean().optional().default(false),
+});
+
 export const aiGenerateSchema = z.object({
   kind: z.enum([
     "page",
@@ -101,3 +106,4 @@ export const aiGenerateSchema = z.object({
 export type SetupCompleteInput = z.infer<typeof setupCompleteSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type AiCreateWebsiteInput = z.infer<typeof aiCreateWebsiteSchema>;
+export type AiBuildSiteInput = z.infer<typeof aiBuildSiteSchema>;

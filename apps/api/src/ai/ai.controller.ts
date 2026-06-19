@@ -3,7 +3,7 @@ import { Throttle } from "@nestjs/throttler";
 import { AiService } from "./ai.service";
 import { Permissions, CurrentUser, type AuthUser } from "../common/decorators";
 import { PermissionsGuard } from "../auth/permissions.guard";
-import { PERMISSIONS, aiCreateWebsiteSchema, aiGenerateSchema } from "@forgecms/shared";
+import { PERMISSIONS, aiBuildSiteSchema, aiCreateWebsiteSchema, aiGenerateSchema } from "@forgecms/shared";
 import { parse } from "../common/zod";
 
 @Controller("ai")
@@ -17,6 +17,13 @@ export class AiController {
   generate(@Body() body: unknown, @CurrentUser() user: AuthUser) {
     const dto = parse(aiGenerateSchema, body);
     return this.ai.generate(user.id, dto.kind, dto.prompt, dto.context);
+  }
+
+  @Permissions(PERMISSIONS.AI_USE)
+  @Post("build-site")
+  buildSite(@Body() body: unknown, @CurrentUser() user: AuthUser) {
+    const dto = parse(aiBuildSiteSchema, body);
+    return this.ai.buildSite(user.id, dto);
   }
 
   @Permissions(PERMISSIONS.AI_USE)
