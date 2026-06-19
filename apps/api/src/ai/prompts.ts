@@ -66,8 +66,9 @@ Return STRICTLY valid JSON of this shape:
 }
 
 Requirements:
-- Create 3–5 pages suited to the business (always include Home and Contact).
-- Home: hero, features or services highlight, testimonials, and a CTA block.
+- Create exactly 3 pages: Home, one main content page (About or Services), and Contact.
+- Keep copy concise; 4–6 blocks per page maximum.
+- Home: hero, features, testimonials, and a CTA block.
 - Contact page must include a contactForm block.
 - Menu must list every main page; home uses url "/" (not "/home").
 - Use section wrappers for visual structure where helpful.

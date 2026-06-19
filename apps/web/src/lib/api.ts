@@ -79,7 +79,7 @@ export async function api<T = unknown>(
   const csrf = getCookie("fc_csrf");
   const method = (rest.method ?? (json !== undefined ? "POST" : "GET")).toUpperCase();
   const isMutation = method !== "GET" && method !== "HEAD";
-  const timeoutMs = path.includes("/ai/build-site") ? 180_000 : 60_000;
+  const timeoutMs = path.includes("/ai/build-site") ? 300_000 : 60_000;
 
   let res: Response;
   try {

@@ -61,10 +61,64 @@ export class AiService {
         "No AI API key configured. Add one in Settings to use the AI Assistant.",
       );
     }
+    const appUrl = process.env.APP_URL?.split(",")[0]?.trim() ?? "https://getforgecms.com";
     return {
-      openai: new OpenAI({ apiKey: cfg.apiKey, baseURL: cfg.baseUrl }),
+      openai: new OpenAI({
+        apiKey: cfg.apiKey,
+        baseURL: cfg.baseUrl.replace(/\/$/, ""),
+        timeout: 300_000,
+        maxRetries: 1,
+        defaultHeaders: {
+          "HTTP-Referer": appUrl,
+          "X-Title": "ForgeCMS",
+        },
+      }),
       model: cfg.model,
     };
+  }
+
+  private isRetryableProviderError(err: unknown): boolean {
+    const msg = err instanceof Error ? err.message : String(err);
+    return /premature close|ECONNRESET|socket hang up|fetch failed|ETIMEDOUT|502|503/i.test(msg);
+  }
+
+  private async chat(system: string, user: string, json: boolean): Promise<string> {
+    const maxAttempts = 3;
+    let lastErr: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const { openai, model } = await this.client();
+        const res = await openai.chat.completions.create({
+          model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          temperature: 0.7,
+          max_tokens: json ? 12_000 : 2_048,
+          response_format: json ? { type: "json_object" } : undefined,
+        });
+        const content = res.choices[0]?.message?.content?.trim() ?? "";
+        if (!content) {
+          throw new BadRequestException("AI returned an empty response. Try again or use a different model.");
+        }
+        return content;
+      } catch (err) {
+        lastErr = err;
+        if (err instanceof BadRequestException) throw err;
+        if (attempt < maxAttempts && this.isRetryableProviderError(err)) {
+          this.logger.warn(`AI chat attempt ${attempt} failed, retrying…`);
+          await new Promise((r) => setTimeout(r, 2_000 * attempt));
+          continue;
+        }
+        break;
+      }
+    }
+
+    const message = this.formatProviderError(lastErr);
+    this.logger.error(`AI chat error: ${message}`);
+    throw new BadRequestException(message);
   }
 
   private formatProviderError(err: unknown): string {
@@ -82,36 +136,18 @@ export class AiService {
     if (err instanceof APIError) {
       if (err.status === 401) return "Invalid API key. Check your key in Settings → AI Integration.";
       if (err.status === 429) return "AI rate limit exceeded. Wait a moment or switch provider/model.";
+      if (err.status === 402) return "OpenRouter credits exhausted. Add credits at openrouter.ai/settings/credits.";
       const brief = raw.length > 180 ? `${raw.slice(0, 180)}…` : raw;
       return `AI provider error (${err.status}): ${brief}`;
     }
+    if (/premature close|ECONNRESET|socket hang up|fetch failed|ETIMEDOUT/i.test(raw)) {
+      return (
+        "Connection to the AI provider closed early (often a timeout or overloaded model). " +
+        "Try again in a minute, use model openai/gpt-4o-mini, or shorten your prompt."
+      );
+    }
     const brief = raw.length > 220 ? `${raw.slice(0, 220)}…` : raw;
     return brief;
-  }
-
-  private async chat(system: string, user: string, json: boolean): Promise<string> {
-    try {
-      const { openai, model } = await this.client();
-      const res = await openai.chat.completions.create({
-        model,
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-        temperature: 0.7,
-        response_format: json ? { type: "json_object" } : undefined,
-      });
-      const content = res.choices[0]?.message?.content?.trim() ?? "";
-      if (!content) {
-        throw new BadRequestException("AI returned an empty response. Try again or use a different model.");
-      }
-      return content;
-    } catch (err) {
-      if (err instanceof BadRequestException) throw err;
-      const message = this.formatProviderError(err);
-      this.logger.error(`AI chat error: ${message}`);
-      throw new BadRequestException(message);
-    }
   }
 
   private async record(userId: string | undefined, kind: string, prompt: string, response: string) {
