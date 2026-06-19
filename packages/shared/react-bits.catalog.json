@@ -1,52 +1,554 @@
 {
   "variant": "TS-TW",
   "components": [
-    { "slug": "Aurora-TS-TW", "category": "background" },
-    { "slug": "Dither-TS-TW", "category": "background" },
-    { "slug": "GridMotion-TS-TW", "category": "background" },
-    { "slug": "Ballpit-TS-TW", "category": "background" },
-    { "slug": "Beams-TS-TW", "category": "background" },
-    { "slug": "DotGrid-TS-TW", "category": "background" },
-    { "slug": "GridDistortion-TS-TW", "category": "background" },
-    { "slug": "Hyperspeed-TS-TW", "category": "background" },
-    { "slug": "Iridescence-TS-TW", "category": "background" },
-    { "slug": "LetterGlitch-TS-TW", "category": "background" },
-    { "slug": "LightRays-TS-TW", "category": "background" },
-    { "slug": "Lightning-TS-TW", "category": "background" },
-    { "slug": "Noise-TS-TW", "category": "background" },
-    { "slug": "MetaBalls-TS-TW", "category": "background" },
-    { "slug": "Particles-TS-TW", "category": "background" },
-    { "slug": "PixelBlast-TS-TW", "category": "background" },
-    { "slug": "Plasma-TS-TW", "category": "background" },
-    { "slug": "Prism-TS-TW", "category": "background" },
-    { "slug": "RippleGrid-TS-TW", "category": "background" },
-    { "slug": "Silk-TS-TW", "category": "background" },
-    { "slug": "Threads-TS-TW", "category": "background" },
-    { "slug": "Waves-TS-TW", "category": "background" },
-    { "slug": "FaultyTerminal-TS-TW", "category": "background" },
-    { "slug": "FadeContent-TS-TW", "category": "animation", "supportsChildren": true },
-    { "slug": "AnimatedContent-TS-TW", "category": "animation", "supportsChildren": true },
-    { "slug": "BlurText-TS-TW", "category": "text" },
-    { "slug": "SplitText-TS-TW", "category": "text" },
-    { "slug": "GradientText-TS-TW", "category": "text" },
-    { "slug": "GlitchText-TS-TW", "category": "text" },
-    { "slug": "ShinyText-TS-TW", "category": "text" },
-    { "slug": "CountUp-TS-TW", "category": "text" },
-    { "slug": "ScrollReveal-TS-TW", "category": "animation", "supportsChildren": true },
-    { "slug": "ScrollFloat-TS-TW", "category": "animation", "supportsChildren": true },
-    { "slug": "DecryptedText-TS-TW", "category": "text" },
-    { "slug": "RotatingText-TS-TW", "category": "text" },
-    { "slug": "Magnet-TS-TW", "category": "interactive", "supportsChildren": true },
-    { "slug": "GlareHover-TS-TW", "category": "interactive", "supportsChildren": true },
-    { "slug": "ClickSpark-TS-TW", "category": "interactive" },
-    { "slug": "StarBorder-TS-TW", "category": "interactive", "supportsChildren": true },
-    { "slug": "DecayCard-TS-TW", "category": "interactive", "supportsChildren": true },
-    { "slug": "Counter-TS-TW", "category": "interactive" },
-    { "slug": "BounceCards-TS-TW", "category": "interactive" },
-    { "slug": "Carousel-TS-TW", "category": "interactive" },
-    { "slug": "Dock-TS-TW", "category": "interactive" },
-    { "slug": "Masonry-TS-TW", "category": "interactive" },
-    { "slug": "ElectricBorder-TS-TW", "category": "interactive", "supportsChildren": true },
-    { "slug": "GradualBlur-TS-TW", "category": "animation", "supportsChildren": true }
+    {
+      "slug": "AnimatedContent-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "AnimatedList-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "Antigravity-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ASCIIText-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Aurora-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Balatro-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Ballpit-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Beams-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "BlobCursor-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "BlurText-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "BorderGlow-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "BounceCards-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "BubbleMenu-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "CardNav-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "CardSwap-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "Carousel-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "ChromaGrid-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "CircularGallery-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "CircularText-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "ClickSpark-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ColorBends-TS-TW",
+      "category": "other"
+    },
+    {
+      "slug": "Counter-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "CountUp-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "Crosshair-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "Cubes-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "CurvedLoop-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "DarkVeil-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "DecayCard-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "DecryptedText-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "Dither-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Dock-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "DomeGallery-TS-TW",
+      "category": "other"
+    },
+    {
+      "slug": "DotField-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "DotGrid-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ElasticSlider-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "ElectricBorder-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "EvilEye-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "FadeContent-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "FallingText-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "FaultyTerminal-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Ferrofluid-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "FloatingLines-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "FlowingMenu-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "FluidGlass-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "FlyingPosters-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "Folder-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "FuzzyText-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "Galaxy-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "GhostCursor-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "GlareHover-TS-TW",
+      "category": "interactive",
+      "supportsChildren": true
+    },
+    {
+      "slug": "GlassIcons-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "GlassSurface-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "GlitchText-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "GooeyNav-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "GradientBlinds-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "GradientText-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "GradualBlur-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "Grainient-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "GridDistortion-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "GridMotion-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "GridScan-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Hyperspeed-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ImageTrail-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "InfiniteMenu-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "Iridescence-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Lanyard-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "LaserFlow-TS-TW",
+      "category": "other"
+    },
+    {
+      "slug": "LetterGlitch-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "Lightfall-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Lightning-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "LightPillar-TS-TW",
+      "category": "other"
+    },
+    {
+      "slug": "LightRays-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "LineWaves-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "LiquidChrome-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "LiquidEther-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "LogoLoop-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "MagicBento-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "MagicRings-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "Magnet-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "MagnetLines-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "Masonry-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "MetaBalls-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "MetallicPaint-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ModelViewer-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Noise-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Orb-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "OrbitImages-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "Particles-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "PillNav-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "PixelBlast-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "PixelCard-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "PixelSnow-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "PixelTrail-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "PixelTransition-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Plasma-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "PlasmaWave-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Prism-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "PrismaticBurst-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ProfileCard-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "Radar-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ReflectiveCard-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "Ribbons-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "RippleGrid-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "RotatingText-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "ScrambledText-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ScrollFloat-TS-TW",
+      "category": "text",
+      "supportsChildren": true
+    },
+    {
+      "slug": "ScrollReveal-TS-TW",
+      "category": "text",
+      "supportsChildren": true
+    },
+    {
+      "slug": "ScrollStack-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "ScrollVelocity-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ShapeBlur-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "ShapeGrid-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "ShinyText-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "Shuffle-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "SideRays-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "Silk-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "SoftAurora-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "SplashCursor-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "SplitText-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "SpotlightCard-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "Stack-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "StaggeredMenu-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "StarBorder-TS-TW",
+      "category": "animation",
+      "supportsChildren": true
+    },
+    {
+      "slug": "Stepper-TS-TW",
+      "category": "animation"
+    },
+    {
+      "slug": "StickerPeel-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "Strands-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "TargetCursor-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "TextCursor-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "TextPressure-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "TextType-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "Threads-TS-TW",
+      "category": "background"
+    },
+    {
+      "slug": "TiltedCard-TS-TW",
+      "category": "interactive"
+    },
+    {
+      "slug": "TrueFocus-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "VariableProximity-TS-TW",
+      "category": "text"
+    },
+    {
+      "slug": "Waves-TS-TW",
+      "category": "background"
+    }
   ]
 }

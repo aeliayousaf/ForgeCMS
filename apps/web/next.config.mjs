@@ -11,6 +11,10 @@ const nextConfig = {
       ".js": [".ts", ".tsx", ".js"],
       ".jsx": [".tsx", ".jsx"],
     };
+    config.module.rules.push({
+      test: /\.glb$/,
+      type: "asset/resource",
+    });
     return config;
   },
   async rewrites() {

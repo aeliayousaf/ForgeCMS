@@ -76,16 +76,19 @@ proxies `/api` to `http://localhost:4000` automatically.
 ## React Bits integration
 
 The page builder includes a searchable **React Bits** panel ([reactbits.dev](https://reactbits.dev))
-with ~47 pre-bundled animated components (backgrounds, text effects, interactive widgets).
+with all **134** pre-bundled `TS-TW` components (backgrounds, text effects, animations, interactive widgets).
 
 **In the builder:** open the left sidebar → **React Bits** → search → click or drag onto the canvas.
 
-**Extend the catalog (developers):**
+**Extend or refresh the catalog (developers):**
 
 1. Enable the shadcn MCP server in Cursor (`.cursor/mcp.json` is included).
-2. Add a component slug to `packages/shared/react-bits.catalog.json` (use `*-TS-TW` variants).
-3. Run `pnpm --filter @forgecms/web react-bits:sync` to install via shadcn and regenerate the manifest.
-4. Rebuild the web app / Docker `web` image.
+2. Regenerate the full catalog from the registry: `pnpm --filter @forgecms/web react-bits:catalog`
+3. Or add individual slugs to `packages/shared/react-bits.catalog.json` (use `*-TS-TW` variants).
+4. Run `pnpm --filter @forgecms/web react-bits:sync` to install via shadcn and regenerate the manifest.
+5. Rebuild the web app / Docker `web` image.
+
+One-shot refresh of all components: `pnpm --filter @forgecms/web react-bits:full`
 
 `apps/web/components.json` registers the `@react-bits` registry per the
 [React Bits MCP guide](https://reactbits.dev/get-started/mcp).

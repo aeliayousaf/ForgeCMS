@@ -173,6 +173,38 @@ async function main() {
 
   generateManifest(installed);
   annotateInstalledFiles();
+  fixDuplicatedExports();
+  await downloadLanyardAssets();
+}
+
+function fixDuplicatedExports() {
+  for (const file of fs.readdirSync(componentsDir)) {
+    if (!file.endsWith(".tsx")) continue;
+    const full = path.join(componentsDir, file);
+    if (fs.statSync(full).isDirectory()) continue;
+    const content = fs.readFileSync(full, "utf8");
+    const matches = [...content.matchAll(/^export default \w+;/gm)];
+    if (matches.length <= 1) continue;
+    const first = matches[0];
+    const endIdx = first.index + first[0].length;
+    fs.writeFileSync(full, `${content.slice(0, endIdx)}\n`);
+    console.log(`  Fixed duplicate export in ${file}`);
+  }
+}
+
+async function downloadLanyardAssets() {
+  const lanyardDir =
+    "https://raw.githubusercontent.com/DavidHDev/react-bits/main/src/ts-tailwind/Components/Lanyard";
+  for (const name of ["card.glb", "lanyard.png"]) {
+    const dest = path.join(componentsDir, name);
+    const res = await fetch(`${lanyardDir}/${name}`);
+    if (!res.ok) {
+      console.warn(`  ⚠ Could not download Lanyard asset ${name}`);
+      continue;
+    }
+    fs.writeFileSync(dest, Buffer.from(await res.arrayBuffer()));
+    console.log(`  ✓ Downloaded Lanyard asset ${name}`);
+  }
 }
 
 function annotateInstalledFiles() {
