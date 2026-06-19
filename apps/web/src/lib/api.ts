@@ -77,12 +77,18 @@ export async function api<T = unknown>(
 ): Promise<T> {
   const { json, headers, _retried, ...rest } = options;
   const csrf = getCookie("fc_csrf");
+  const method = (rest.method ?? (json !== undefined ? "POST" : "GET")).toUpperCase();
+  const isMutation = method !== "GET" && method !== "HEAD";
+  const timeoutMs = path.includes("/ai/build-site") ? 180_000 : 60_000;
+
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...rest,
+      method,
       credentials: "include",
-      signal: rest.signal ?? requestTimeout(60_000),
+      redirect: isMutation ? "manual" : "follow",
+      signal: rest.signal ?? requestTimeout(timeoutMs),
       headers: {
         ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
         ...(csrf ? { "x-csrf-token": csrf } : {}),
@@ -97,6 +103,16 @@ export async function api<T = unknown>(
     throw new ApiError(0, "Network error — could not reach the server");
   }
 
+  if (
+    isMutation &&
+    (res.type === "opaqueredirect" || res.status === 301 || res.status === 302 || res.status === 303)
+  ) {
+    throw new ApiError(
+      res.status,
+      "Request was redirected — open the admin at https:// (not http://) and try again",
+    );
+  }
+
   if (res.status === 401 && !_retried && typeof window !== "undefined") {
     const refreshed = await fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
@@ -109,6 +125,13 @@ export async function api<T = unknown>(
   const text = await res.text();
   if (!res.ok) {
     const { message, errors } = parseApiErrorBody(res.status, text);
+    if (res.status === 404 && message.includes("Cannot GET") && isMutation) {
+      throw new ApiError(
+        404,
+        "API route not found — rebuild the api container (docker compose build api) and use https://",
+        errors,
+      );
+    }
     throw new ApiError(res.status, message, errors);
   }
   if (!text) return undefined as T;
