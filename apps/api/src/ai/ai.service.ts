@@ -68,23 +68,40 @@ export class AiService {
   }
 
   private async chat(system: string, user: string, json: boolean): Promise<string> {
-    const { openai, model } = await this.client();
-    const res = await openai.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-      temperature: 0.7,
-      response_format: json ? { type: "json_object" } : undefined,
-    });
-    return res.choices[0]?.message?.content ?? "";
+    try {
+      const { openai, model } = await this.client();
+      const res = await openai.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        temperature: 0.7,
+        response_format: json ? { type: "json_object" } : undefined,
+      });
+      const content = res.choices[0]?.message?.content?.trim() ?? "";
+      if (!content) {
+        throw new BadRequestException("AI returned an empty response. Try again or use a different model.");
+      }
+      return content;
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`AI chat error: ${msg}`);
+      throw new BadRequestException(
+        `AI request failed: ${msg}. Check your API key, base URL, and model in Settings.`,
+      );
+    }
   }
 
   private async record(userId: string | undefined, kind: string, prompt: string, response: string) {
-    await this.prisma.aIHistory.create({
-      data: { userId: userId ?? null, kind, prompt, response: response.slice(0, 60000) },
-    });
+    try {
+      await this.prisma.aIHistory.create({
+        data: { userId: userId ?? null, kind, prompt, response: response.slice(0, 60000) },
+      });
+    } catch (err) {
+      this.logger.warn(`Failed to record AI history: ${String(err)}`);
+    }
   }
 
   async generate(
@@ -122,6 +139,37 @@ export class AiService {
     return s.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   }
 
+  /** AI models often omit block ids; assign them before Zod validation. */
+  private coerceBlockNode(raw: unknown): BlockNode {
+    const b = raw as Record<string, unknown>;
+    const children = Array.isArray(b.children)
+      ? (b.children as unknown[]).map((c) => this.coerceBlockNode(c))
+      : undefined;
+    return {
+      id: typeof b.id === "string" && b.id.length > 0 ? b.id : randomUUID(),
+      type: b.type as BlockNode["type"],
+      props: (b.props as Record<string, unknown>) ?? {},
+      styles: b.styles as BlockNode["styles"],
+      children,
+    };
+  }
+
+  private coercePageDocument(raw: unknown): PageDocument {
+    const doc = raw as Record<string, unknown>;
+    const blocks = Array.isArray(doc.blocks)
+      ? (doc.blocks as unknown[]).map((b) => this.coerceBlockNode(b))
+      : [];
+    return pageDocumentSchema.parse({ version: 1, blocks });
+  }
+
+  private parseAiJson(raw: string): unknown {
+    try {
+      return JSON.parse(this.stripFence(raw));
+    } catch {
+      throw new BadRequestException("AI returned invalid JSON. Try again.");
+    }
+  }
+
   private ensureBlockIds(block: BlockNode): BlockNode {
     return {
       ...block,
@@ -143,8 +191,16 @@ export class AiService {
 
     let data: z.infer<typeof buildSiteResponseSchema>;
     try {
-      data = buildSiteResponseSchema.parse(JSON.parse(this.stripFence(raw)));
+      const json = this.parseAiJson(raw) as Record<string, unknown>;
+      if (Array.isArray(json.pages)) {
+        json.pages = (json.pages as Record<string, unknown>[]).map((p) => ({
+          ...p,
+          document: this.coercePageDocument(p.document),
+        }));
+      }
+      data = buildSiteResponseSchema.parse(json);
     } catch (err) {
+      if (err instanceof BadRequestException) throw err;
       this.logger.warn(`buildSite parse error: ${String(err)}`);
       throw new BadRequestException("AI generation failed to produce a valid site. Try again.");
     }
@@ -169,15 +225,21 @@ export class AiService {
     for (const p of data.pages) {
       const slug = await this.uniqueSlug(p.slug === "home" ? "home" : p.slug);
       const doc = this.ensureIds(p.document);
-      const page = await this.prisma.page.create({
-        data: {
-          title: p.title,
-          slug,
-          status: "draft",
-          isHomepage: slug === "home",
-          versions: { create: { version: 1, document: doc as object, authorId: userId } },
-        },
-      });
+      let page;
+      try {
+        page = await this.prisma.page.create({
+          data: {
+            title: p.title,
+            slug,
+            status: "draft",
+            isHomepage: slug === "home",
+            versions: { create: { version: 1, document: doc as object, authorId: userId } },
+          },
+        });
+      } catch (err) {
+        this.logger.error(`Failed to create page ${p.title}: ${String(err)}`);
+        throw new BadRequestException(`Could not save page "${p.title}". ${String(err)}`);
+      }
 
       let published = false;
       if (input.publish) {
@@ -217,8 +279,16 @@ export class AiService {
 
     let data: z.infer<typeof schema>;
     try {
-      data = schema.parse(JSON.parse(this.stripFence(raw)));
+      const json = this.parseAiJson(raw) as Record<string, unknown>;
+      if (Array.isArray(json.pages)) {
+        json.pages = (json.pages as Record<string, unknown>[]).map((p) => ({
+          ...p,
+          document: this.coercePageDocument(p.document),
+        }));
+      }
+      data = schema.parse(json);
     } catch (err) {
+      if (err instanceof BadRequestException) throw err;
       this.logger.warn(`createWebsite parse error: ${String(err)}`);
       throw new BadRequestException("AI generation failed to produce valid pages. Try again.");
     }
@@ -232,16 +302,21 @@ export class AiService {
     for (const p of data.pages) {
       const slug = await this.uniqueSlug(p.slug);
       const doc = this.ensureIds(p.document);
-      const page = await this.prisma.page.create({
-        data: {
-          title: p.title,
-          slug,
-          status: "draft",
-          isHomepage: slug === "home",
-          versions: { create: { version: 1, document: doc as object, authorId: userId } },
-        },
-      });
-      created.push({ id: page.id, title: page.title, slug: page.slug });
+      try {
+        const page = await this.prisma.page.create({
+          data: {
+            title: p.title,
+            slug,
+            status: "draft",
+            isHomepage: slug === "home",
+            versions: { create: { version: 1, document: doc as object, authorId: userId } },
+          },
+        });
+        created.push({ id: page.id, title: page.title, slug: page.slug });
+      } catch (err) {
+        this.logger.error(`Failed to create page ${p.title}: ${String(err)}`);
+        throw new BadRequestException(`Could not save page "${p.title}". ${String(err)}`);
+      }
     }
     return { pages: created };
   }
